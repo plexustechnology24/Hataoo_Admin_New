@@ -17,7 +17,7 @@ import DeleteModal from "../../components/deleteModal";
 
 const HowToWork = () => {
     const [visible, setVisible] = useState(false);
-    const [pagination, setPagination] = useState(null);
+    const [meta, setMeta] = useState(null);
     const [id, setId] = useState();
     const [loading, setLoading] = useState(true);
     const [imageFileLabel, setImageFileLabel] = useState('Image Upload');
@@ -95,9 +95,9 @@ const HowToWork = () => {
         axios.get('https://hataoo-backend.onrender.com/api/how-to-work/read', { params })
             .then((res) => {
                 const responseData = res.data.data || [];
-                const responsePagination = res.data.pagination || res.data.meta;
+                const responsePagination = res.data.meta;
                 setFilteredData(responseData);
-                setPagination(responsePagination);
+                setMeta(responsePagination);
                 if (responsePagination) setCurrentPage(responsePagination.currentPage || page);
                 setSelectedItems([]);
                 setSelectAll(false);
@@ -179,7 +179,7 @@ const HowToWork = () => {
     const handleShowPreview = (idx) => { setPreviewIndex(idx); setShowPreview(true); };
 
     const handlePreviewNavigation = async (newIndex, direction) => {
-        const totalPages = pagination ? pagination.totalPages : 1;
+        const totalPages = meta ? meta.totalPages : 1;
         if (direction === 'next' && newIndex >= currentItems.length) {
             if (currentPage < totalPages) { const next = currentPage + 1; setPreviewIndex(0); setCurrentPage(next); getData(next, searchTerm); }
         } else if (direction === 'prev' && newIndex < 0) {
@@ -410,11 +410,11 @@ const HowToWork = () => {
     // ─── Render ───────────────────────────────────────────────────────────────
     return (
         // Full viewport height, flex column — pagination always sticks to bottom
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        <div className="flex flex-col h-[calc(100vh-120px)]">
             <PageBreadcrumb pageTitle="How to work (Why us)" />
 
             {/* Scrollable middle area */}
-            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+            <div className="flex-1 overflow-y-auto overflow-x-hidden">
                 <div className="rounded-2xl border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
 
                     {/* ── Header bar ── */}
@@ -594,10 +594,10 @@ const HowToWork = () => {
             </div>
 
             {/* ── Pagination — flex-shrink-0 keeps it always at the bottom ── */}
-            <div className="border-t bg-white dark:bg-gray-900 dark:border-gray-700 flex-shrink-0">
+            <div className="w-full border-t dark:bg-gray-900 dark:border-gray-700 mt-0">
                 <CustomPagination
                     currentPage={currentPage}
-                    totalPages={pagination ? pagination.totalPages : 1}
+                    totalPages={meta ? meta.totalPages : 1}
                     onPageChange={(page) => {
                         setCurrentPage(page);
                         setSelectedItems([]);
@@ -605,7 +605,7 @@ const HowToWork = () => {
                         getData(page, searchTerm);
                     }}
                     itemsPerPage={itemsPerPage}
-                    totalItems={pagination ? pagination.total : filteredData.length}
+                    totalItems={meta ? meta.total : filteredData.length}
                 />
             </div>
 
@@ -674,17 +674,17 @@ const HowToWork = () => {
                                         onClick={() => !isSubmitting && (!id ? selectedFiles.length < MAX_FILES : true) && fileInputRef.current?.click()}
                                         onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
                                         className={`flex flex-col items-center justify-center p-6 border-2 rounded-lg cursor-pointer transition-all duration-300
-                                            ${isDragging ? 'border-purple-600 bg-purple-50' : `border-dashed ${formErrors.file ? 'border-red-500' : 'border-purple-500'}`}
+                                            ${isDragging ? 'border-[#eab308] bg-[#eab308]-50' : `border-dashed ${formErrors.file ? 'border-red-500' : 'border-[#eab308]'}`}
                                             ${isSubmitting || selectedFiles.length >= MAX_FILES ? 'cursor-not-allowed opacity-70' : 'hover:bg-gray-50'}`}
                                         style={{ background: isDragging ? "#F5F3FF" : "#F9FAFB" }}>
                                         <FontAwesomeIcon icon={isDragging ? faFileImage : faArrowUpFromBracket}
-                                            className={`text-2xl mb-2 ${isDragging ? 'text-purple-600' : 'text-gray-400'}`} />
+                                            className={`text-2xl mb-2 ${isDragging ? 'text-[#eab308]' : 'text-gray-400'}`} />
                                         <div className="flex flex-col items-center gap-1 text-center">
                                             {isDragging
-                                                ? <span className="text-purple-600 font-medium text-sm">Drop image here</span>
+                                                ? <span className="text-[#eab308] font-medium text-sm">Drop image here</span>
                                                 : <>
                                                     <span className="text-gray-500 text-sm">Drag & drop or</span>
-                                                    <span className="text-purple-600 font-medium text-sm">Browse files</span>
+                                                    <span className="text-[#000] font-medium text-sm">Browse files</span>
                                                     {!id && <span className="text-xs text-gray-400 mt-1">{selectedFiles.length}/{MAX_FILES} selected</span>}
                                                 </>}
                                         </div>
@@ -737,6 +737,7 @@ const HowToWork = () => {
                 isOpen={deleteModal.isOpen}
                 isBulk={deleteModal.isBulk}
                 selectedCount={selectedItems.length}
+                value={"content"}
                 isDeleting={isDeleting}
                 onClose={closeDeleteModal}
                 onConfirm={
@@ -752,7 +753,7 @@ const HowToWork = () => {
                 images={currentItems.map(item => item.file)}
                 currentIndex={previewIndex % itemsPerPage}
                 onNavigate={handlePreviewNavigation}
-                totalImages={pagination ? pagination.total : filteredData.length}
+                totalImages={meta ? meta.total : filteredData.length}
                 currentPage={currentPage}
                 itemsPerPage={itemsPerPage}
             />

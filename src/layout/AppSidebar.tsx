@@ -11,7 +11,7 @@ import {
 
 import logo from "../assest/logo.png";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPencil, faQrcode } from "@fortawesome/free-solid-svg-icons";
+import { faPencil, faQrcode, faTag } from "@fortawesome/free-solid-svg-icons";
 
 type NavItem = {
   name: string;
@@ -44,6 +44,11 @@ const onlineItems: NavItem[] = [
     icon: <FontAwesomeIcon icon={faPencil} />,
     name: "How to Work",
     path: "/online/how-to-work",
+  },
+  {
+    icon: <FontAwesomeIcon icon={faTag} />,
+    name: "Product",
+    path: "/online/product",
   },
 ];
 

@@ -25,7 +25,7 @@ const clearAuthStorage = () => {
 };
 
 export const api = axios.create({
-  baseURL: 'http://localhost:3001/api',
+  baseURL: 'https://hataoo-backend.onrender.com/api',
 });
 
 // Attach token to every request if present

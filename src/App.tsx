@@ -9,6 +9,7 @@ import AdminProtect from "./components/AdminProtect";
 import { QrCodesPage } from "./pages/Offline/qr-codes";
 import { TooltipProvider } from "./components/ui/tooltip";
 import HowToWork from "./pages/Online/howtowork";
+import Product from "./pages/Online/product";
 
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
           {/* All Page */}
           <Route path="offline/qr-codes" element={<AdminProtect><QrCodesPage /></AdminProtect>} />
           <Route path="online/how-to-work" element={<AdminProtect><HowToWork /></AdminProtect>} />
+          <Route path="online/product" element={<AdminProtect><Product /></AdminProtect>} />
           {/* Fallback Route */}
           <Route path="*" element={<AdminProtect><Ecommerce /></AdminProtect>} />
         </Route>
