@@ -1,5 +1,4 @@
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
-import { useNavigate } from "react-router";
 
 const MoreDashboard = () => {
 

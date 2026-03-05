@@ -1,4 +1,4 @@
-import { IconUser, IconQrcode, IconHeart, IconPhone } from "@tabler/icons-react"
+import { IconUser, IconQrcode, IconPhone } from "@tabler/icons-react"
 import { BadgeInfo } from "lucide-react"
 
 export function QrDetailsDialog({

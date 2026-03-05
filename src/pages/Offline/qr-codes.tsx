@@ -5,7 +5,6 @@ import { QrCodeCard } from "../../components/qr-code-card";
 import { deleteQrCode, generateQrCodes, getAllQrCodes, getQrCodeById } from "../../api/qrCodeApi";
 import { EmptyState } from "../../components/empty-data";
 import { toast } from "sonner";
-import { Pagination } from "../../components/ui/pagination";
 import { QrDetailsDialog } from "../../components/qr-details-dialog";
 import { Input } from "../../components/ui/input";
 import { useDebounce } from "../../hooks/use-debounce";

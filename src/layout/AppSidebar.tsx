@@ -11,7 +11,7 @@ import {
 
 import logo from "../assest/logo.png";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChartLine, faGlobe, faChartPie, faBell, faMoneyBill1, faImagePortrait, faMobile, faPencil, faFaceGrinStars, faFire, faHourglass, faHeart, faHandshake, faMask, faTrophy, faMessage, faQrcode } from "@fortawesome/free-solid-svg-icons";
+import { faPencil, faQrcode } from "@fortawesome/free-solid-svg-icons";
 
 type NavItem = {
   name: string;
@@ -40,8 +40,11 @@ const offlineItems: NavItem[] = [
 
 // 🔹 New online nav items
 const onlineItems: NavItem[] = [
-  
-  
+  {
+    icon: <FontAwesomeIcon icon={faPencil} />,
+    name: "How to Work",
+    path: "/online/how-to-work",
+  },
 ];
 
 

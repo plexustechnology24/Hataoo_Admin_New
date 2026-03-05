@@ -19,7 +19,7 @@ export default function UserDropdown() {
   return (
     <div className="relative">
       
-        <Button className="p-3 text-white rounded-lg py-2 d-flex gap-3 align-items-center bg-[#eab308] hover:text-gray-900" onClick={handleLogout}>
+        <Button className="p-3 rounded-lg py-2 d-flex gap-3 align-items-center bg-[#eab308] hover:text-gray-900" onClick={handleLogout}>
           <div className='logout-icon ps-1'></div>
           Logout
         </Button>

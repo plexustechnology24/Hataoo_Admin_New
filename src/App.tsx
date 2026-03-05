@@ -6,8 +6,9 @@ import AuthLayout from "./layout/AuthLayout";
 import SignIn from "./pages/AuthPages/SignIn";
 import Ecommerce from "./pages/Dashboard/ECommerce";
 import AdminProtect from "./components/AdminProtect";
-import { QrCodesPage } from "./pages/Qrcode/qr-codes";
+import { QrCodesPage } from "./pages/Offline/qr-codes";
 import { TooltipProvider } from "./components/ui/tooltip";
+import HowToWork from "./pages/Online/howtowork";
 
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
 
           {/* All Page */}
           <Route path="offline/qr-codes" element={<AdminProtect><QrCodesPage /></AdminProtect>} />
+          <Route path="online/how-to-work" element={<AdminProtect><HowToWork /></AdminProtect>} />
           {/* Fallback Route */}
           <Route path="*" element={<AdminProtect><Ecommerce /></AdminProtect>} />
         </Route>

@@ -3,7 +3,6 @@ import { Button } from "../components/ui/button"
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "../components/ui/tooltip"
 import { IconTrash, IconInfoCircle, IconLock } from "@tabler/icons-react"
@@ -25,10 +24,10 @@ export function QrCodeCard({
   onDelete,
   onInfo,
 }: QrCodeCardProps) {
-  const imageUrl = `http://localhost:3001/${image}`
+  const imageUrl = `${image}`
 
   return (
-    <Card className="flex flex-col items-center relative">
+    <Card className="flex flex-col items-center relative bg-white">
       {/* Action Buttons */}
       <div className="absolute top-2 right-2 flex gap-1 z-10">
         {onInfo && (
