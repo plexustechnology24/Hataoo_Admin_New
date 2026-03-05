@@ -12,6 +12,8 @@ import {
     faFileImage, faPlus, faSearch, faTrash, faTimes
 } from "@fortawesome/free-solid-svg-icons";
 import CustomPagination from "../../components/common/pagination";
+import Loading from "../../components/loading";
+import DeleteModal from "../../components/deleteModal";
 
 const HowToWork = () => {
     const [visible, setVisible] = useState(false);
@@ -403,13 +405,7 @@ const HowToWork = () => {
     };
 
     // ─── Loading ──────────────────────────────────────────────────────────────
-    if (loading) return (
-        <div style={{ height: '80vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            <div className="border p-4 flex items-center space-x-2 rounded-md">
-                <div className="w-10 h-10 border-2 border-gray-300 rounded-full animate-spin" style={{ borderTop: "2px solid #eab308" }} />
-            </div>
-        </div>
-    );
+    if (loading) return <Loading />;
 
     // ─── Render ───────────────────────────────────────────────────────────────
     return (
@@ -561,11 +557,11 @@ const HowToWork = () => {
                                                     </div>
                                                 </TableCell>
 
-                                                <TableCell className="py-3 px-3 border-r border-gray-200 dark:border-gray-700 text-center">
+                                                <TableCell className="py-3 px-3 border-r border-gray-200 dark:border-gray-700 text-center ">
                                                     {file.link
                                                         ? <a href={file.link} target="_blank" rel="noopener noreferrer"
-                                                            className="text-blue-500 hover:text-blue-700 text-sm"
-                                                            style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}
+                                                            className="text-blue-500 hover:text-blue-700 text-sm mx-auto"
+                                                            style={{ maxWidth: 220, overflow: 'hidden', display: 'block' }}
                                                             title={file.link}>{file.link}</a>
                                                         : <span className="text-gray-400 text-sm">—</span>}
                                                 </TableCell>
@@ -737,30 +733,16 @@ const HowToWork = () => {
             )}
 
             {/* ── Delete Confirm Modal ── */}
-            {deleteModal.isOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999]">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4 shadow-lg dark:bg-gray-800">
-                        <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-3">
-                            {deleteModal.isBulk ? 'Delete Selected Items' : 'Delete Content'}
-                        </h2>
-                        <p className="text-gray-700 dark:text-gray-300 mb-6">
-                            {deleteModal.isBulk
-                                ? `Are you sure you want to delete ${selectedItems.length} selected items?`
-                                : 'Are you sure you want to delete this content?'}
-                        </p>
-                        <div className="flex justify-end gap-3">
-                            <button onClick={closeDeleteModal} disabled={isDeleting}
-                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-70">
-                                Cancel
-                            </button>
-                            <button onClick={deleteModal.isBulk ? handleDeleteSelected : handleDelete} disabled={isDeleting}
-                                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 disabled:opacity-70">
-                                {isDeleting ? "Deleting..." : "Delete"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <DeleteModal
+                isOpen={deleteModal.isOpen}
+                isBulk={deleteModal.isBulk}
+                selectedCount={selectedItems.length}
+                isDeleting={isDeleting}
+                onClose={closeDeleteModal}
+                onConfirm={
+                    deleteModal.isBulk ? handleDeleteSelected : handleDelete
+                }
+            />
 
             <ToastContainer position="top-center" className="!z-[99999]" />
 
