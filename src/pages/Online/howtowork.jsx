@@ -15,7 +15,6 @@ import CustomPagination from "../../components/common/pagination";
 
 const HowToWork = () => {
     const [visible, setVisible] = useState(false);
-    const [data, setData] = useState([]);
     const [pagination, setPagination] = useState(null);
     const [id, setId] = useState();
     const [loading, setLoading] = useState(true);
@@ -29,7 +28,6 @@ const HowToWork = () => {
     const fileInputRef = useRef(null);
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [previewUrls, setPreviewUrls] = useState([]);
-    const [existingImageUrl, setExistingImageUrl] = useState('');
     const MAX_FILES = 1;
 
     const [previewIndex, setPreviewIndex] = useState(0);
@@ -96,7 +94,6 @@ const HowToWork = () => {
             .then((res) => {
                 const responseData = res.data.data || [];
                 const responsePagination = res.data.pagination || res.data.meta;
-                setData(responseData);
                 setFilteredData(responseData);
                 setPagination(responsePagination);
                 if (responsePagination) setCurrentPage(responsePagination.currentPage || page);
@@ -110,7 +107,7 @@ const HowToWork = () => {
             .finally(() => setLoading(false));
     }, [itemsPerPage]);
 
-    useEffect(() => { getData(1, ''); }, []);
+    useEffect(() => { getData(1, ''); }, [getData]);
 
     // ─── Select all / individual ──────────────────────────────────────────────
     const handleSelectAll = () => {
@@ -191,7 +188,7 @@ const HowToWork = () => {
     // ─── Form helpers ─────────────────────────────────────────────────────────
     const resetForm = () => {
         setFormTitle(''); setFormDescription(''); setFormLink('');
-        setSelectedFiles([]); setPreviewUrls([]); setExistingImageUrl('');
+        setSelectedFiles([]); setPreviewUrls([]);
         setImageFileLabel('Image Upload'); setId(undefined); setFormErrors({});
     };
 
@@ -212,56 +209,134 @@ const HowToWork = () => {
     };
 
     // ─── Image compression ────────────────────────────────────────────────────
-    const compressImage = (file) => new Promise((resolve, reject) => {
-        if (file.type === "image/gif" || file.size < 2 * 1024 * 1024) { resolve(file); return; }
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-                let { width, height } = img;
-                const MAX = 2000;
-                if (width > MAX || height > MAX) {
-                    if (width > height) { height = Math.round((height * MAX) / width); width = MAX; }
-                    else { width = Math.round((width * MAX) / height); height = MAX; }
-                }
-                const canvas = document.createElement("canvas");
-                canvas.width = width; canvas.height = height;
-                const ctx = canvas.getContext("2d");
-                ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
-                ctx.drawImage(img, 0, 0, width, height);
-                const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
-                canvas.toBlob((blob) => {
-                    if (!blob) { reject(new Error("Canvas to Blob failed")); return; }
-                    resolve(new File([blob], file.name, { type: outputType, lastModified: Date.now() }));
-                }, outputType, outputType === "image/png" ? 1 : 0.92);
-            };
-            img.onerror = () => reject(new Error("Failed to load image"));
-            img.src = event.target.result;
-        };
-        reader.onerror = () => reject(new Error("Failed to read file"));
-        reader.readAsDataURL(file);
-    });
+    const compressImage = useCallback((file) => {
+        return new Promise((resolve, reject) => {
 
-    const handleFileChange = async (event) => {
+            if (file.type === "image/gif" || file.size < 2 * 1024 * 1024) {
+                resolve(file);
+                return;
+            }
+
+            const reader = new FileReader();
+
+            reader.onload = (event) => {
+                const img = new Image();
+
+                img.onload = () => {
+                    let { width, height } = img;
+                    const MAX = 2000;
+
+                    if (width > MAX || height > MAX) {
+                        if (width > height) {
+                            height = Math.round((height * MAX) / width);
+                            width = MAX;
+                        } else {
+                            width = Math.round((width * MAX) / height);
+                            height = MAX;
+                        }
+                    }
+
+                    const canvas = document.createElement("canvas");
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    const ctx = canvas.getContext("2d");
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = "high";
+
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    const outputType =
+                        file.type === "image/png" ? "image/png" : "image/jpeg";
+
+                    canvas.toBlob(
+                        (blob) => {
+                            if (!blob) {
+                                reject(new Error("Canvas to Blob failed"));
+                                return;
+                            }
+
+                            resolve(
+                                new File([blob], file.name, {
+                                    type: outputType,
+                                    lastModified: Date.now(),
+                                })
+                            );
+                        },
+                        outputType,
+                        outputType === "image/png" ? 1 : 0.92
+                    );
+                };
+
+                img.onerror = () =>
+                    reject(new Error("Failed to load image"));
+
+                img.src = event.target.result;
+            };
+
+            reader.onerror = () =>
+                reject(new Error("Failed to read file"));
+
+            reader.readAsDataURL(file);
+        });
+    }, []);
+
+    const handleFileChange = useCallback(async (event) => {
         const files = Array.from(event.currentTarget.files);
+
         if (id) {
-            if (files.length > 1) { toast.error('Only one image when editing'); return; }
-            setSelectedFiles([]); setPreviewUrls([]);
+            if (files.length > 1) {
+                toast.error('Only one image when editing');
+                return;
+            }
+            setSelectedFiles([]);
+            setPreviewUrls([]);
         } else if (selectedFiles.length + files.length > MAX_FILES) {
-            toast.error(`Maximum ${MAX_FILES} image`); return;
+            toast.error(`Maximum ${MAX_FILES} image`);
+            return;
         }
-        const processed = [], previews = [];
+
+        const processed = [];
+        const previews = [];
+
         for (const file of files) {
             try {
                 const pf = await compressImage(file);
-                if (pf.size > 5 * 1024 * 1024) { toast.error(`${file.name} exceeds 5 MB`); continue; }
-                processed.push(pf); previews.push(URL.createObjectURL(pf));
-            } catch { toast.error(`Error processing ${file.name}`); }
+
+                if (pf.size > 5 * 1024 * 1024) {
+                    toast.error(`${file.name} exceeds 5 MB`);
+                    continue;
+                }
+
+                processed.push(pf);
+                previews.push(URL.createObjectURL(pf));
+            } catch {
+                toast.error(`Error processing ${file.name}`);
+            }
         }
-        if (id) { setSelectedFiles(processed); setPreviewUrls(previews); }
-        else { setSelectedFiles([...selectedFiles, ...processed]); setPreviewUrls([...previewUrls, ...previews]); }
-        if (formErrors.file) setFormErrors(prev => { const e = { ...prev }; delete e.file; return e; });
-    };
+
+        if (id) {
+            setSelectedFiles(processed);
+            setPreviewUrls(previews);
+        } else {
+            setSelectedFiles(prev => [...prev, ...processed]);
+            setPreviewUrls(prev => [...prev, ...previews]);
+        }
+
+        if (formErrors.file) {
+            setFormErrors(prev => {
+                const e = { ...prev };
+                delete e.file;
+                return e;
+            });
+        }
+    }, [
+        id,
+        selectedFiles.length,
+        MAX_FILES,
+        compressImage,
+        formErrors.file
+    ]);
 
     const removeFile = (index) => {
         URL.revokeObjectURL(previewUrls[index]);
@@ -276,7 +351,7 @@ const HowToWork = () => {
         if (!files.length) { toast.error('Image files only'); return; }
         if (selectedFiles.length + files.length > MAX_FILES) { toast.error(`Maximum ${MAX_FILES} image`); return; }
         handleFileChange({ currentTarget: { files } });
-    }, [isSubmitting, selectedFiles]);
+    }, [isSubmitting, selectedFiles, handleFileChange]);
 
     const onDragOver = useCallback((e) => { e.preventDefault(); e.stopPropagation(); if (!isSubmitting) setIsDragging(true); }, [isSubmitting]);
     const onDragLeave = useCallback((e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }, []);
@@ -311,7 +386,7 @@ const HowToWork = () => {
     };
 
     const handleEdit = (file) => {
-        setExistingImageUrl(file.file); setPreviewUrls([file.file]); setSelectedFiles([]);
+        setPreviewUrls([file.file]); setSelectedFiles([]);
         setId(file._id); setFormTitle(file.title || '');
         setFormDescription(file.description || ''); setFormLink(file.link || '');
         setFormErrors({});
@@ -481,7 +556,7 @@ const HowToWork = () => {
                                                 </TableCell>
 
                                                 <TableCell className="py-3 px-3 border-r border-gray-200 dark:border-gray-700 dark:text-gray-400 text-center">
-                                                    <div className="text-sm mx-auto" style={{ maxWidth: 220, overflow: 'hidden', display: '-webkit-box'}} title={file.description}>
+                                                    <div className="text-sm mx-auto" style={{ maxWidth: 220, overflow: 'hidden', display: '-webkit-box' }} title={file.description}>
                                                         {file.description || '—'}
                                                     </div>
                                                 </TableCell>

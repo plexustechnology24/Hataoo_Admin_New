@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { IconPlus, IconSearch, IconX } from "@tabler/icons-react";
 import { Button } from "../../components/ui/button";
 import { QrCodeCard } from "../../components/qr-code-card";
@@ -43,46 +43,53 @@ export function QrCodesPage() {
     }, []);
 
     // Fetch All QR Codes
-    const fetchQrs = async (currentPage = 1, search = "") => {
-        if (!navigator.onLine) {
-            setOffline(true);
-            return;
-        }
-
-        setOffline(false);
-        setError(false);
-        try {
-            setLoading(true);
-            const data = await getAllQrCodes({
-                page: currentPage,
-                limit,
-                search: search || undefined
-            });
-            const transformedData = data?.data?.map((item) => ({
-                id: item._id,
-                qrLink: item.qrLink,
-                qrImage: item.qrImage,
-                isActive: item.isActive,
-                code: item.code,
-            }));
-            setQrCodes(transformedData);
-            setTotalPages(data.meta.pages || 1);
-            setTotalItems(data.meta.total || 0);
-        } catch (err: any) {
-            if (!window.navigator.onLine) {
+    const fetchQrs = useCallback(
+        async (currentPage = 1, search = "") => {
+            if (!navigator.onLine) {
                 setOffline(true);
-            } else {
-                setError(true);
+                return;
             }
-        } finally {
-            setLoading(false);
-        }
-    };
+
+            setOffline(false);
+            setError(false);
+
+            try {
+                setLoading(true);
+
+                const data = await getAllQrCodes({
+                    page: currentPage,
+                    limit,
+                    search: search || undefined,
+                });
+
+                const transformedData = data?.data?.map((item) => ({
+                    id: item._id,
+                    qrLink: item.qrLink,
+                    qrImage: item.qrImage,
+                    isActive: item.isActive,
+                    code: item.code,
+                }));
+
+                setQrCodes(transformedData);
+                setTotalPages(data.meta.pages || 1);
+                setTotalItems(data.meta.total || 0);
+            } catch (err: any) {
+                if (!window.navigator.onLine) {
+                    setOffline(true);
+                } else {
+                    setError(true);
+                }
+            } finally {
+                setLoading(false);
+            }
+        },
+        [limit] // only dependency needed
+    );
 
     // Fetch when page or search changes
     useEffect(() => {
         fetchQrs(page, debouncedSearch);
-    }, [page, debouncedSearch]);
+    }, [page, debouncedSearch, fetchQrs]);
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchTerm(e.target.value);
@@ -246,7 +253,7 @@ export function QrCodesPage() {
                             totalPages={totalPages}
                             onPageChange={setPage}
                             itemsPerPage={limit}
-                            totalItems={totalItems}  
+                            totalItems={totalItems}
                         />
                     </div>
                 )}
