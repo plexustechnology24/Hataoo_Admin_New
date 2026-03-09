@@ -28,16 +28,6 @@ const navItems: NavItem[] = [
   },
 ];
 
-// 🔹 New offline nav items
-const offlineItems: NavItem[] = [
-  {
-    icon: <FontAwesomeIcon icon={faQrcode} />,
-    name: "Qr Codes",
-    path: "/offline/qr-codes",
-  },
-  
-];
-
 // 🔹 New online nav items
 const onlineItems: NavItem[] = [
   {
@@ -52,6 +42,21 @@ const onlineItems: NavItem[] = [
   },
 ];
 
+// 🔹 New offline nav items
+const offlineItems: NavItem[] = [
+  {
+    icon: <FontAwesomeIcon icon={faQrcode} />,
+    name: "Sample Qr Codes",
+    path: "/offline/sample-qr-codes",
+  },
+  {
+    icon: <FontAwesomeIcon icon={faQrcode} />,
+    name: "Qr Codes",
+    path: "/offline/qr-codes",
+  },
+  
+];
+
 
 
 const AppSidebar: React.FC = () => {
@@ -59,19 +64,19 @@ const AppSidebar: React.FC = () => {
   const location = useLocation();
 
   const [openSubmenu, setOpenSubmenu] = useState<{
-    type: "main" | "offline" | "online";
+    type: "main" | "online" | "offline";
     index: number;
   } | null>(null);
   
   // 🔹 New state for section dropdowns
   const [openSections, setOpenSections] = useState<{
     general: boolean;
-    offline: boolean;
     online: boolean;
+    offline: boolean;
   }>({
     general: true,
-    offline: false,
     online: false,
+    offline: false,
   });
 
   const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>({});
@@ -87,15 +92,15 @@ const AppSidebar: React.FC = () => {
 
   useEffect(() => {
     let submenuMatched = false;
-    ["main", "offline", "online"].forEach((menuType) => {
-      const items = menuType === "main" ? navItems : menuType === "offline" ? offlineItems : onlineItems;
+    ["main", "online", "offline"].forEach((menuType) => {
+      const items = menuType === "main" ? navItems : menuType === "online" ? onlineItems : offlineItems;
 
       items.forEach((nav, index) => {
         if (nav.subItems) {
           nav.subItems.forEach((subItem) => {
             if (isActive(subItem.path)) {
               setOpenSubmenu({
-                type: menuType as "main" | "offline" | "online",
+                type: menuType as "main" | "online" | "offline",
                 index,
               });
               submenuMatched = true;
@@ -136,7 +141,7 @@ const AppSidebar: React.FC = () => {
 
   const handleSubmenuToggle = (
     index: number,
-    menuType: "main" | "offline" | "online"
+    menuType: "main" | "online" | "offline"
   ) => {
     setOpenSubmenu((prevOpenSubmenu) => {
       if (
@@ -158,7 +163,7 @@ const AppSidebar: React.FC = () => {
     }));
   };
 
-  const renderMenuItems = (items: NavItem[], menuType: "main" | "offline" | "online") => (
+  const renderMenuItems = (items: NavItem[], menuType: "main" | "online" | "offline") => (
     <ul className="flex flex-col gap-4">
       {items.map((nav, index) => (
         <li key={nav.name}>
@@ -337,43 +342,6 @@ const AppSidebar: React.FC = () => {
               </div>
             </div>
 
-            {/* 🔹 offline Section */}
-            <div>
-              <button
-                onClick={() => toggleSection("offline")}
-                className={`mb-4 w-full text-xs uppercase flex items-center leading-[20px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors ${!isExpanded && !isHovered
-                    ? "lg:justify-center"
-                    : "justify-between"
-                  }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? (
-                  <>
-                    <span>Offline</span>
-                    <ChevronDownIcon
-                      className={`w-4 h-4 transition-transform duration-200 ${
-                        openSections.offline ? "rotate-180" : ""
-                      }`}
-                    />
-                  </>
-                ) : (
-                  <HorizontaLDots />
-                )}
-              </button>
-              <div
-                ref={(el) => {
-                  sectionRefs.current["offline"] = el;
-                }}
-                className="overflow-hidden transition-all duration-300"
-                style={{
-                  height: openSections.offline
-                    ? `${sectionHeight["offline"]}px`
-                    : "0px",
-                }}
-              >
-                {renderMenuItems(offlineItems, "offline")}
-              </div>
-            </div>
-
             {/* 🔹 online Section */}
             <div>
               <button
@@ -385,7 +353,7 @@ const AppSidebar: React.FC = () => {
               >
                 {isExpanded || isHovered || isMobileOpen ? (
                   <>
-                    <span>Online</span>
+                    <span>Online website</span>
                     <ChevronDownIcon
                       className={`w-4 h-4 transition-transform duration-200 ${
                         openSections.online ? "rotate-180" : ""
@@ -408,6 +376,43 @@ const AppSidebar: React.FC = () => {
                 }}
               >
                 {renderMenuItems(onlineItems, "online")}
+              </div>
+            </div>
+
+            {/* 🔹 offline Section */}
+            <div>
+              <button
+                onClick={() => toggleSection("offline")}
+                className={`mb-4 w-full text-xs uppercase flex items-center leading-[20px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors ${!isExpanded && !isHovered
+                    ? "lg:justify-center"
+                    : "justify-between"
+                  }`}
+              >
+                {isExpanded || isHovered || isMobileOpen ? (
+                  <>
+                    <span>Qr Codes</span>
+                    <ChevronDownIcon
+                      className={`w-4 h-4 transition-transform duration-200 ${
+                        openSections.offline ? "rotate-180" : ""
+                      }`}
+                    />
+                  </>
+                ) : (
+                  <HorizontaLDots />
+                )}
+              </button>
+              <div
+                ref={(el) => {
+                  sectionRefs.current["offline"] = el;
+                }}
+                className="overflow-hidden transition-all duration-300"
+                style={{
+                  height: openSections.offline
+                    ? `${sectionHeight["offline"]}px`
+                    : "0px",
+                }}
+              >
+                {renderMenuItems(offlineItems, "offline")}
               </div>
             </div>
 
