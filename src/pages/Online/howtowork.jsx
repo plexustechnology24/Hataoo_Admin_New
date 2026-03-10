@@ -478,8 +478,8 @@ const HowToWork = () => {
                                 </div>
 
                                 <Button onClick={() => toggleModal('add')}
-                                    className="rounded-md border-0 shadow-md px-4 py-2 text-black"
-                                    style={{ background: "#eab308" }}>
+                                    className="rounded-md border-0 shadow-md px-4 py-2 text-white"
+                                    style={{ background: "#7C7FFF" }}>
                                     <FontAwesomeIcon icon={faPlus} className="pe-2" /> Add Content
                                 </Button>
                             </div>
@@ -674,14 +674,14 @@ const HowToWork = () => {
                                         onClick={() => !isSubmitting && (!id ? selectedFiles.length < MAX_FILES : true) && fileInputRef.current?.click()}
                                         onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
                                         className={`flex flex-col items-center justify-center p-6 border-2 rounded-lg cursor-pointer transition-all duration-300
-                                            ${isDragging ? 'border-[#eab308] bg-[#eab308]-50' : `border-dashed ${formErrors.file ? 'border-red-500' : 'border-[#eab308]'}`}
+                                            ${isDragging ? 'border-[#7C7FFF] bg-[#7C7FFF]-50' : `border-dashed ${formErrors.file ? 'border-red-500' : 'border-[#7C7FFF]'}`}
                                             ${isSubmitting || selectedFiles.length >= MAX_FILES ? 'cursor-not-allowed opacity-70' : 'hover:bg-gray-50'}`}
                                         style={{ background: isDragging ? "#F5F3FF" : "#F9FAFB" }}>
                                         <FontAwesomeIcon icon={isDragging ? faFileImage : faArrowUpFromBracket}
-                                            className={`text-2xl mb-2 ${isDragging ? 'text-[#eab308]' : 'text-gray-400'}`} />
+                                            className={`text-2xl mb-2 ${isDragging ? 'text-[#7C7FFF]' : 'text-gray-400'}`} />
                                         <div className="flex flex-col items-center gap-1 text-center">
                                             {isDragging
-                                                ? <span className="text-[#eab308] font-medium text-sm">Drop image here</span>
+                                                ? <span className="text-[#7C7FFF] font-medium text-sm">Drop image here</span>
                                                 : <>
                                                     <span className="text-gray-500 text-sm">Drag & drop or</span>
                                                     <span className="text-[#000] font-medium text-sm">Browse files</span>
@@ -719,8 +719,8 @@ const HowToWork = () => {
                                         Cancel
                                     </button>
                                     <button type="submit" disabled={isSubmitting}
-                                        className="w-1/2 py-2 px-4 text-black rounded-lg transition-colors disabled:opacity-50"
-                                        style={{ backgroundColor: "#eab308" }}>
+                                        className="w-1/2 py-2 px-4 text-white rounded-lg transition-colors disabled:opacity-50"
+                                        style={{ backgroundColor: "#7C7FFF" }}>
                                         {isSubmitting
                                             ? <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto" />
                                             : id ? 'Update' : 'Submit'}

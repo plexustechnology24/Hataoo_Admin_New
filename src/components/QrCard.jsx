@@ -8,6 +8,8 @@ import {
     faArrowRotateLeft,
     faRotateLeft,
     faTriangleExclamation,
+    faPrint,
+    faCheckCircle,
 } from "@fortawesome/free-solid-svg-icons"
 import { useState } from 'react';
 
@@ -90,7 +92,19 @@ const ResetConfirmPopup = ({ item, index, onConfirm, onCancel }) => (
 /* ══════════════════════════════════════════════════════════════════
    QR CARD
 ══════════════════════════════════════════════════════════════════ */
-const QrCard = ({ item, index, onDelete, onInfo, isSelected, onSelect, onDownload, onReset , type }) => {
+const QrCard = ({
+    item,
+    index,
+    onDelete,
+    onInfo,
+    isSelected,
+    onSelect,
+    onDownload,
+    onReset,
+    onMarkAsPrinted,
+    isPrintLoading,
+    type,
+}) => {
     const [showResetPopup, setShowResetPopup] = useState(false);
 
     const copyToClipboard = (text) => {
@@ -101,7 +115,7 @@ const QrCard = ({ item, index, onDelete, onInfo, isSelected, onSelect, onDownloa
 
     return (
         <>
-            <div className={`relative bg-white dark:bg-gray-200 rounded-xl border-2 transition-all duration-200 overflow-hidden group
+            <div className={`relative bg-white dark:bg-gray-600 rounded-xl border-2 transition-all duration-200 overflow-hidden group
                 ${isSelected
                     ? 'border-gray-400'
                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 hover:shadow-md dark:hover:border-gray-700'}`}>
@@ -109,7 +123,7 @@ const QrCard = ({ item, index, onDelete, onInfo, isSelected, onSelect, onDownloa
                 {/* Checkbox */}
                 <div className="absolute top-2 left-2 z-10">
                     <input type="checkbox"
-                        className="w-4 h-4 text-yellow-400 border-gray-300 rounded focus:ring-yellow-400 cursor-pointer"
+                        className="w-4 h-4 border-gray-300 rounded focus:ring-yellow-0 cursor-pointer"
                         checked={isSelected}
                         onChange={() => onSelect(item._id)} />
                 </div>
@@ -117,14 +131,21 @@ const QrCard = ({ item, index, onDelete, onInfo, isSelected, onSelect, onDownloa
                 {/* Top-right badges */}
                 <div className="absolute top-2 right-2 z-10 flex flex-col items-end gap-1">
                     {isNew && (
-                        <span className="bg-yellow-400 text-black text-[8px] font-black ms-2 px-1.5 rounded-full uppercase tracking-wide shadow-sm">
-                            NEW
+                        <span className="flex items-center justify-center bg-green-50 text-green-600 text-[10px] border border-green-300 px-2 rounded-full h-5 leading-none tracking-wide shadow-sm">
+                            New
                         </span>
                     )}
+                    {/* Printed badge */}
+                    {/* {item.isPrinted && (
+                        <span className="flex items-center gap-1 bg-blue-50 text-blue-600 text-[10px] border border-blue-200 px-2 rounded-full h-5 leading-none tracking-wide shadow-sm">
+                            <FontAwesomeIcon icon={faCheckCircle} className="text-[9px]" />
+                            Printed
+                        </span>
+                    )} */}
                 </div>
 
                 {/* QR Image */}
-                <div className="flex items-center justify-center bg-gray-50 dark:bg-gray-200/50 px-4 pt-8 pb-3 min-h-[150px]">
+                <div className="flex items-center justify-center bg-gray-50 dark:bg-gray-600/50 px-4 pt-8 pb-3 min-h-[150px]">
                     {item.qrImage ? (
                         <img src={item.qrImage} alt="QR Code"
                             className="w-28 h-28 object-contain transition-transform duration-200 group-hover:scale-105"
@@ -140,7 +161,7 @@ const QrCard = ({ item, index, onDelete, onInfo, isSelected, onSelect, onDownloa
                 <div className="">
 
                     {/* Status line */}
-                    <div className="flex items-center justify-center bg-gray-50 dark:bg-gray-200/50 px-3 py-1">
+                    <div className="flex items-center justify-center bg-gray-50 dark:bg-gray-600/50 px-3 py-1">
                         {item.isActive !== undefined && (
                             <span className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold
                                 ${item.isActive
@@ -153,7 +174,7 @@ const QrCard = ({ item, index, onDelete, onInfo, isSelected, onSelect, onDownloa
                     </div>
 
                     {/* QR Link row */}
-                    <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-200/50 px-2 py-1.5 border-t border-gray-100">
+                    <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-600/50 px-2 py-1.5">
                         <FontAwesomeIcon icon={faLink} className="text-gray-400 text-[13px] flex-shrink-0" />
                         <a
                             href={item.qrLink || "#"}
@@ -175,6 +196,7 @@ const QrCard = ({ item, index, onDelete, onInfo, isSelected, onSelect, onDownloa
 
                     {/* Actions */}
                     <div className="flex items-center justify-between py-2 border-t border-gray-100 dark:border-gray-700 px-2">
+
                         {/* Info */}
                         <button onClick={() => onInfo(item)}
                             className="flex items-center gap-1.5 text-sm text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors px-2 py-1 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
@@ -189,12 +211,34 @@ const QrCard = ({ item, index, onDelete, onInfo, isSelected, onSelect, onDownloa
                             <FontAwesomeIcon icon={faDownload} />
                         </button>
 
+                        {/* Mark as Printed — shown when onMarkAsPrinted prop is provided */}
+                        {onMarkAsPrinted && (
+                            <button
+                                onClick={() => onMarkAsPrinted(item)}
+                                disabled={isPrintLoading || item.isPrinted}
+                                title={item.isPrinted ? "Already Printed" : "Mark as Printed"}
+                                className={`flex items-center gap-1.5 text-sm transition-colors px-2 py-1 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed
+      ${item.isPrinted
+                                        ? 'text-gray-400'
+                                        : 'text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                                    }`}
+                            >
+                                {isPrintLoading ? (
+                                    <div className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                    <FontAwesomeIcon icon={item.isPrinted ? faCheckCircle : faPrint} />
+                                )}
+                            </button>
+                        )}
+
                         {/* Delete */}
-                        <button onClick={() => onDelete(item._id)}
-                            className="flex items-center gap-1.5 text-sm text-red-500 hover:text-red-700 dark:hover:text-red-300 transition-colors px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
-                            title="Delete">
-                            <FontAwesomeIcon icon={faTrash} />
-                        </button>
+                        {item.qrtype === "sample" && (
+                            <button onClick={() => onDelete(item._id)}
+                                className="flex items-center gap-1.5 text-sm text-red-500 hover:text-red-700 dark:hover:text-red-300 transition-colors px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                                title="Delete">
+                                <FontAwesomeIcon icon={faTrash} />
+                            </button>
+                        )}
 
                         {/* Reset — only for active QRs */}
                         {item.isActive && item.qrtype === "sample" && (

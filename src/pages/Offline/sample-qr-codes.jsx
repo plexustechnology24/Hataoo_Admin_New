@@ -13,9 +13,10 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import CustomPagination from "../../components/common/pagination";
 import Loading from "../../components/loading";
-import DeleteModal from "../../components/deleteModal";
 import QrInfoModal from "../../components/QrInfoModal";
 import QrCard from "../../components/QrCard";
+import DateRangeFilter, { DEFAULT_DATE_KEY, defaultDateRange } from "../../components/Daterangefilter";
+import PinVerifyModal from "../../components/Pinmodal";
 
 const ITEMS_PER_PAGE = 16;
 const QUANTITY_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -43,7 +44,7 @@ const downloadAllQrs = (items, globalIndexMap) => {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-        }, i * 300); 
+        }, i * 300);
     });
     toast.success(`Downloading ${items.filter(i => i.qrImage).length} QR codes...`);
 };
@@ -59,7 +60,7 @@ const SampleQrcode = () => {
     const [filteredData, setFilteredData] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
-    const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, isBulk: false });
+
     const [selectedItems, setSelectedItems] = useState([]);
     const [selectAll, setSelectAll] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -69,8 +70,18 @@ const SampleQrcode = () => {
     const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
     const filterDropdownRef = useRef(null);
 
+    // Date filter state
+    const [dateKey, setDateKey] = useState(DEFAULT_DATE_KEY);
+    const [dateRange, setDateRange] = useState(defaultDateRange());
+
     /* Info modal */
     const [infoModal, setInfoModal] = useState({ open: false, qr: null });
+
+    /* PIN modal — holds the delete action to run on success */
+    const [pinModal, setPinModal] = useState({ isOpen: false, pendingAction: null });
+
+    /* Per-QR isPrinted state */
+    const [printingId, setPrintingId] = useState(null);
 
     /* Form fields */
     const [formQuantity, setFormQuantity] = useState(1);
@@ -84,19 +95,28 @@ const SampleQrcode = () => {
         globalIndexMap[item._id] = ((currentPage - 1) * ITEMS_PER_PAGE) + i + 1;
     });
 
+    /* ── PIN helper ── */
+    const requirePin = (action) => setPinModal({ isOpen: true, pendingAction: action });
+    const closePinModal = () => setPinModal({ isOpen: false, pendingAction: null });
+    const handlePinVerified = () => {
+        const action = pinModal.pendingAction;
+        closePinModal();
+        if (action) action();
+    };
+
     /* Search */
     const handleSearch = (e) => {
         const value = e.target.value;
         setSearchTerm(value);
-        if (value.trim() === '') { setCurrentPage(1); getData(1, '', statusFilter); }
+        if (value.trim() === '') { setCurrentPage(1); getData(1, '', statusFilter, dateRange); }
     };
-    const handleSearchSubmit = (e) => { e.preventDefault(); setCurrentPage(1); getData(1, searchTerm.trim(), statusFilter); };
-    const handleClearSearch = () => { setSearchTerm(''); setCurrentPage(1); getData(1, '', statusFilter); };
+    const handleSearchSubmit = (e) => { e.preventDefault(); setCurrentPage(1); getData(1, searchTerm.trim(), statusFilter, dateRange); };
+    const handleClearSearch = () => { setSearchTerm(''); setCurrentPage(1); getData(1, '', statusFilter, dateRange); };
 
     /* Filter */
     const handleStatusFilter = (value) => {
         setStatusFilter(value); setFilterDropdownOpen(false); setCurrentPage(1);
-        getData(1, searchTerm.trim(), value);
+        getData(1, searchTerm.trim(), value, dateRange);
     };
     useEffect(() => {
         const handler = (e) => {
@@ -107,47 +127,65 @@ const SampleQrcode = () => {
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
+    /* Date filter */
+    const handleDateChange = ({ key, fromDate, toDate }) => {
+        setDateKey(key); setDateRange({ fromDate, toDate });
+        setCurrentPage(1); getData(1, searchTerm.trim(), statusFilter, { fromDate, toDate });
+    };
+    const handleDateClear = ({ key, fromDate, toDate }) => {
+        setDateKey(key); setDateRange({ fromDate, toDate });
+        setCurrentPage(1); getData(1, searchTerm.trim(), statusFilter, { fromDate, toDate });
+    };
+
     /* Data fetching */
-    const getData = useCallback((page = 1, search = '', status = '') => {
+    const getData = useCallback((page = 1, search = '', status = '', dr = null) => {
         setLoading(true);
         const params = { page, limit: ITEMS_PER_PAGE, qrtype: 'sample' };
         if (search && search.trim() !== '') params.search = search.trim();
         if (status !== '') params.isActive = status;
+        if (dr?.fromDate) params.fromDate = dr.fromDate;
+        if (dr?.toDate) params.toDate = dr.toDate;
         axios.get('https://api.hataoo.in/api/qr-code', { params })
             .then((res) => {
-                const responseData = res.data.data || [];
-                const responsePagination = res.data.meta;
-                setFilteredData(responseData);
-                setMeta(responsePagination);
-                if (responsePagination) setCurrentPage(responsePagination.page || page);
+                setFilteredData(res.data.data || []);
+                setMeta(res.data.meta);
+                if (res.data.meta) setCurrentPage(res.data.meta.page || page);
                 setSelectedItems([]); setSelectAll(false);
             })
             .catch(() => toast.error("No Data Found"))
             .finally(() => setLoading(false));
     }, []);
 
-    useEffect(() => { getData(1, ''); }, [getData]);
+    useEffect(() => { getData(1, '', '', dateRange); }, [getData]);
 
     const handleResetQr = async (item) => {
         try {
             await axios.put(`https://api.hataoo.in/api/qr-code/update/${item.code}`, {
-                language: null,
-                carNumberPlate: null,
-                name: null,
-                contactNumber: null,
-                contactVerified: false,
-                isActive: false,
-                emergencyDetails: {
-                    emergencyContacts: [],
-                    bloodGroup: null,
-                    healthInsuranceCompany: null,
-                    notes: null
-                }
+                language: null, carNumberPlate: null, name: null,
+                contactNumber: null, contactVerified: false, isActive: false,
+                emergencyDetails: { emergencyContacts: [], bloodGroup: null, healthInsuranceCompany: null, notes: null }
             });
             toast.success("QR Code reset successfully.");
-            getData(currentPage, searchTerm, statusFilter);
+            getData(currentPage, searchTerm, statusFilter, dateRange);
         } catch (err) {
             toast.error(err.response?.data?.message || "Failed to reset QR code.");
+        }
+    };
+
+    /* Per-QR isPrinted toggle */
+    const handleMarkAsPrinted = async (item) => {
+        if (printingId) return;
+        setPrintingId(item._id);
+        try {
+            await axios.put(`https://api.hataoo.in/api/qr-code/update/${item.code}`, {
+                isPrinted: !item.isPrinted,
+            });
+            toast.success(item.isPrinted ? "Marked as not printed." : "Marked as printed.");
+            getData(currentPage, searchTerm, statusFilter, dateRange);
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Failed to update print status.");
+        } finally {
+            setPrintingId(null);
         }
     };
 
@@ -179,52 +217,47 @@ const SampleQrcode = () => {
         downloadAllQrs(selectedQrItems, globalIndexMap);
     };
 
-    /* Delete */
+    /* ── Delete: PIN verified → API called directly, no confirm modal ── */
     const openDeleteModal = (deleteId = null, isBulk = false) => {
         if (isBulk) {
             if (selectedItems.length === 0) { toast.info("No items selected."); return; }
-            const hasActive = currentItems.some(
-                item => selectedItems.includes(item._id) && item.isActive
-            );
-            if (hasActive) {
-                toast.error("Cannot delete active QR codes. Please deactivate them first.");
-                return;
-            }
-        } else {
-            const item = currentItems.find(i => i._id === deleteId);
-            if (item?.isActive) {
-                toast.error("Cannot delete an active QR code.");
-                return;
-            }
+            const hasActive = currentItems.some(item => selectedItems.includes(item._id) && item.isActive);
+            if (hasActive) { toast.error("Cannot delete active QR codes. Please deactivate them first."); return; }
+            requirePin(() => {
+                setIsDeleting(true);
+                axios.post('https://api.hataoo.in/api/admin/deleteMultiple', { ids: selectedItems, TypeId: "3" })
+                    .then(() => {
+                        toast.success(`Successfully deleted ${selectedItems.length} QR codes.`);
+                        const remaining = currentItems.length - selectedItems.length;
+                        const newPage = remaining <= 0 && currentPage > 1 ? currentPage - 1 : currentPage;
+                        getData(newPage, searchTerm, statusFilter, dateRange);
+                    })
+                    .catch(() => toast.error("Failed to delete selected items."))
+                    .finally(() => setIsDeleting(false));
+            });
+            return;
         }
-        setDeleteModal({ isOpen: true, id: deleteId, isBulk });
-    };
-    const closeDeleteModal = () => setDeleteModal({ isOpen: false, id: null, isBulk: false });
-    const handleDelete = () => {
-        axios.delete(`https://api.hataoo.in/api/qr-code/${deleteModal.id}`)
-            .then((res) => {
-                const newPage = currentItems.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
-                getData(newPage, searchTerm, statusFilter); closeDeleteModal(); toast.success(res.data.message);
-            })
-            .catch(() => toast.error("An error occurred. Please try again."));
-    };
-    const handleDeleteSelected = () => {
-        setIsDeleting(true);
-        axios.post('https://api.hataoo.in/api/admin/deleteMultiple', { ids: selectedItems, TypeId: "3" })
-            .then(() => {
-                toast.success(`Successfully deleted ${selectedItems.length} QR codes.`);
-                const remaining = currentItems.length - selectedItems.length;
-                const newPage = remaining <= 0 && currentPage > 1 ? currentPage - 1 : currentPage;
-                getData(newPage, searchTerm, statusFilter);
-            })
-            .catch(() => toast.error("Failed to delete selected items."))
-            .finally(() => { setIsDeleting(false); closeDeleteModal(); });
+        // Single delete
+        const item = currentItems.find(i => i._id === deleteId);
+        if (item?.isActive) { toast.error("Cannot delete an active QR code."); return; }
+        requirePin(() => {
+            axios.delete(`https://api.hataoo.in/api/qr-code/${deleteId}`)
+                .then((res) => {
+                    const newPage = currentItems.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+                    getData(newPage, searchTerm, statusFilter, dateRange);
+                    toast.success(res.data.message);
+                })
+                .catch(() => toast.error("An error occurred. Please try again."));
+        });
     };
 
     const clearAllFilters = () => {
+        const dr = defaultDateRange();
         setSearchTerm(''); setStatusFilter('');
         setSelectedItems([]); setSelectAll(false); setCurrentPage(1);
-        getData(1, '', ''); toast.info("All filters cleared");
+        setDateKey(DEFAULT_DATE_KEY); setDateRange(dr);
+        getData(1, '', '', dr);
+        toast.info("All filters cleared");
     };
 
     const resetForm = () => { setFormQuantity(1); setFormErrors({}); };
@@ -247,18 +280,16 @@ const SampleQrcode = () => {
         if (Object.keys(errs).length > 0) { setFormErrors(errs); return; }
         if (isSubmitting) return;
 
-        // ── MAX 16 CHECK ──────────────────────────────────────────────
-        const currentTotal = meta?.total ?? filteredData.length;
-        if (currentTotal + Number(formQuantity) > 16) {
-            const remaining = 16 - currentTotal;
-            if (remaining <= 0) {
-                toast.error("Maximum limit of 16 Sample QR codes reached. Please delete some before generating more.");
-            } else {
-                toast.error(`Only ${remaining} more QR code(s) can be generated. Maximum limit is 16.`);
-            }
-            return;
-        }
-        // ─────────────────────────────────────────────────────────────
+        // const currentTotal = meta?.total ?? filteredData.length;
+        // if (currentTotal + Number(formQuantity) > 16) {
+        //     const remaining = 16 - currentTotal;
+        //     if (remaining <= 0) {
+        //         toast.error("Maximum limit of 16 Sample QR codes reached. Please delete some before generating more.");
+        //     } else {
+        //         toast.error(`Only ${remaining} more QR code(s) can be generated. Maximum limit is 16.`);
+        //     }
+        //     return;
+        // }
 
         try {
             setIsSubmitting(true);
@@ -267,7 +298,7 @@ const SampleQrcode = () => {
                 qrtype: "sample",
             });
             toast.success(res.data.message || `${formQuantity} QR codes generated successfully`);
-            resetForm(); setVisible(false); getData(1, searchTerm, statusFilter);
+            resetForm(); setVisible(false); getData(1, searchTerm, statusFilter, dateRange);
         } catch (err) {
             toast.error(err.response?.data?.message || "An error occurred. Please try again.");
         } finally { setIsSubmitting(false); }
@@ -327,10 +358,7 @@ const SampleQrcode = () => {
                                 {/* Status Filter Dropdown */}
                                 <div ref={filterDropdownRef} className="relative">
                                     <button type="button" onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
-                                        className={`h-11 flex items-center gap-2 px-4 rounded-lg border text-sm font-medium transition-colors
-                                            ${statusFilter !== ''
-                                                ? 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'
-                                                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'}`}>
+                                        className="h-11 flex items-center gap-2 px-4 rounded-lg border text-sm font-medium transition-colors border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
                                         <FontAwesomeIcon icon={faFilter} className="text-xs" />
                                         <span>
                                             {statusFilter === '' ? 'Filter' : statusFilter === 'true' ? 'Active' : 'Inactive'}
@@ -350,7 +378,7 @@ const SampleQrcode = () => {
                                                             ${statusFilter === opt.value
                                                                 ? 'bg-yellow-50 text-yellow-700 font-medium dark:bg-yellow-900/20 dark:text-yellow-400'
                                                                 : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'}`}>
-                                                        <span className={`w-2 h-2 rounded-full flex-shrink-0`} />
+                                                        <span className="w-2 h-2 rounded-full flex-shrink-0" />
                                                         {opt.label}
                                                     </button>
                                                 ))}
@@ -358,6 +386,13 @@ const SampleQrcode = () => {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Date Range Filter */}
+                                <DateRangeFilter
+                                    selectedKey={dateKey}
+                                    onChange={handleDateChange}
+                                    onClear={handleDateClear}
+                                />
 
                                 {/* Select All toggle */}
                                 {currentItems.length > 0 && (
@@ -370,36 +405,40 @@ const SampleQrcode = () => {
                                 )}
                             </div>
 
-
                             <Button onClick={() => toggleModal('add')}
-                                className="rounded-md border-0 shadow-md px-4 py-2 text-black h-11"
-                                style={{ background: "#eab308" }}>
+                                className="rounded-md border-0 shadow-md px-4 py-2 text-white h-11"
+                                style={{ background: "#7C7FFF" }}>
                                 <FontAwesomeIcon icon={faPlus} className="pe-2" /> Generate QR
                             </Button>
                         </div>
 
-
-                        {/* Left: bulk actions */}
+                        {/* Bulk actions bar */}
                         <div className="flex gap-4 items-center justify-between flex-wrap mt-3 ps-4">
-                            {selectedItems.length > 0 && (
-                                <div className="d-flex">
-                                    <Button onClick={() => openDeleteModal(null, true)} disabled={isDeleting}
-                                        variant="danger" className="d-flex align-items-center gap-2 py-1"
-                                        style={{ fontSize: "14px", color: "#f13838", border: "none", background: "transparent" }}>
-                                        {isDeleting
-                                            ? <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-                                            : <><FontAwesomeIcon icon={faTrash} className="pe-2" /><span>DELETE SELECTED ({selectedItems.length})</span></>}
-                                    </Button>
+                            <div className="flex gap-4 items-center flex-wrap">
+                                {selectedItems.length > 0 && (
+                                    <>
+                                        <Button
+                                            onClick={() => openDeleteModal(null, true)}
+                                            disabled={isDeleting}
+                                            variant="danger"
+                                            className="d-flex align-items-center gap-2 py-1"
+                                            style={{ fontSize: "14px", color: "#f13838", border: "none", background: "transparent" }}>
+                                            {isDeleting
+                                                ? <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                                                : <><FontAwesomeIcon icon={faTrash} className="pe-2" /><span>DELETE SELECTED ({selectedItems.length})</span></>}
+                                        </Button>
 
-                                    {/* Download selected button */}
-                                    <Button onClick={handleDownloadSelected}
-                                        className="d-flex align-items-center gap-2 py-1 ps-3"
-                                        style={{ fontSize: "14px", color: "#16a34a", border: "none", background: "transparent" }}>
-                                        <FontAwesomeIcon icon={faDownload} className="pe-2" />
-                                        <span>DOWNLOAD SELECTED ({selectedItems.length})</span>
-                                    </Button>
-                                </div>
-                            )}
+                                        <Button
+                                            onClick={handleDownloadSelected}
+                                            className="d-flex align-items-center gap-2 py-1 ps-3"
+                                            style={{ fontSize: "14px", color: "#16a34a", border: "none", background: "transparent" }}>
+                                            <FontAwesomeIcon icon={faDownload} className="pe-2" />
+                                            <span>DOWNLOAD SELECTED ({selectedItems.length})</span>
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
+
                             {hasActiveFilters && (
                                 <Button onClick={clearAllFilters} variant="outline-secondary"
                                     className="d-flex align-items-center gap-2 py-1 border-0 bg-transparent"
@@ -426,7 +465,9 @@ const SampleQrcode = () => {
                                             isSelected={selectedItems.includes(item._id)}
                                             onSelect={handleSelectItem}
                                             onDownload={(url, globalIndex) => downloadQr(url, globalIndex)}
-                                            onReset={handleResetQr}   
+                                            onReset={handleResetQr}
+                                            onMarkAsPrinted={handleMarkAsPrinted}
+                                            isPrintLoading={printingId === item._id}
                                             type={"sample"}
                                         />
                                     );
@@ -462,7 +503,7 @@ const SampleQrcode = () => {
                     totalPages={meta ? meta.pages : 1}
                     onPageChange={(page) => {
                         setCurrentPage(page); setSelectedItems([]); setSelectAll(false);
-                        getData(page, searchTerm, statusFilter);
+                        getData(page, searchTerm, statusFilter, dateRange);
                     }}
                     itemsPerPage={ITEMS_PER_PAGE}
                     totalItems={meta ? meta.total : filteredData.length}
@@ -476,9 +517,7 @@ const SampleQrcode = () => {
                     <div className="relative bg-white dark:bg-gray-900 rounded-2xl w-full shadow-2xl overflow-hidden"
                         style={{ maxWidth: 480 }}>
                         <div className="bg-gray-50 px-6 py-4 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <h2 className="text-lg font-bold text-black">Generate QR Codes</h2>
-                            </div>
+                            <h2 className="text-lg font-bold text-black">Generate QR Codes</h2>
                             <button type="button" onClick={() => !isSubmitting && toggleModal()}
                                 className="text-black/70 hover:text-black transition-colors p-1">
                                 <FontAwesomeIcon icon={faTimes} className="text-xl" />
@@ -504,7 +543,6 @@ const SampleQrcode = () => {
                                                     ${formQuantity === qty
                                                         ? 'border-gray-400 bg-yellow-400 text-black shadow-sm scale-105'
                                                         : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 hover:bg-yellow-50/50'}`}>
-                                                {/* <span className="text-xs font-normal opacity-70">16×{multiplier}</span> */}
                                                 <span>{qty}</span>
                                             </button>
                                         );
@@ -519,11 +557,11 @@ const SampleQrcode = () => {
                                     Cancel
                                 </button>
                                 <button type="submit" disabled={isSubmitting}
-                                    className="flex-1 py-2.5 text-black rounded-xl transition-colors text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2"
-                                    style={{ backgroundColor: "#eab308" }}>
+                                    className="flex-1 py-2.5 text-white rounded-xl transition-colors text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2"
+                                    style={{ backgroundColor: "#7C7FFF" }}>
                                     {isSubmitting
-                                        ? <><div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" /><span>Generating...</span></>
-                                        : <><span>Generate {formQuantity} QRs</span></>}
+                                        ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Generating...</span></>
+                                        : <span>Generate {formQuantity} QRs</span>}
                                 </button>
                             </div>
                         </form>
@@ -531,10 +569,15 @@ const SampleQrcode = () => {
                 </div>
             )}
 
-            {/* Delete Modal */}
-            <DeleteModal isOpen={deleteModal.isOpen} isBulk={deleteModal.isBulk} selectedCount={selectedItems.length}
-                isDeleting={isDeleting} onClose={closeDeleteModal} value={"QR code"}
-                onConfirm={deleteModal.isBulk ? handleDeleteSelected : handleDelete} />
+            {/* PIN Verify Modal — on success, delete API is called directly */}
+            <PinVerifyModal
+                isOpen={pinModal.isOpen}
+                onClose={closePinModal}
+                onVerified={handlePinVerified}
+                correctPin="1234"
+                title="Enter PIN to Delete"
+                subtitle="Please enter your secure 4-digit PIN to proceed."
+            />
 
             {/* QR Info Modal */}
             {infoModal.open && (

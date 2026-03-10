@@ -52,7 +52,7 @@ const AdminProtect: React.FC<AdminProtectProps> = ({ children }) => {
       }}
     >
       <div className="border p-4 flex items-center space-x-2 rounded-md">
-        <div className="w-10 h-10 border-2 border-gray-300 rounded-full animate-spin dark:border-gray-800" style={{ borderTop: "2px solid #eab308" }}></div>
+        <div className="w-10 h-10 border-2 border-gray-300 rounded-full animate-spin dark:border-gray-800" style={{ borderTop: "2px solid #7C7FFF" }}></div>
       </div>
 
     </div>;

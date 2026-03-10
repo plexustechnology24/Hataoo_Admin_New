@@ -52,7 +52,7 @@ const CustomPagination = ({
             mx-1 px-3 py-1 rounded
             transition-colors duration-200
             ${currentPage === i
-              ? 'bg-[#eab308] text-black border border-[#ababac]'
+              ? 'bg-[#7C7FFF] text-white border border-[#ababac]'
               : 'bg-white text-[#ababac] border border-[#ababac] hover:bg-gray-100'
             }
           `}

@@ -11,7 +11,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ type, message }) => {
       case "loading":
         return (
           <div className="flex flex-col items-center gap-3 py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-yellow-500" />
+            <Loader2 className="h-8 w-8 animate-spin text-purple-400-500" />
             <p className="text-sm text-muted-foreground">{message || "Loading..."}</p>
           </div>
         );

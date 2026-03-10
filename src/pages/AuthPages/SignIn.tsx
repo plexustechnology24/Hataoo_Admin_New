@@ -113,9 +113,9 @@ const SignIn = () => {
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full text-black font-semibold py-2 rounded-lg transition"
+                      className="w-full text-white font-semibold py-2 rounded-lg transition"
                       style={{
-                        background: 'linear-gradient(90deg, #eab308 0%, #eab308 100%)'
+                        background: 'linear-gradient(90deg, #7C7FFF 0%, #7C7FFF 100%)'
                       }}
                     >
                       {isSubmitting ? "Signing In..." : "Sign In"}

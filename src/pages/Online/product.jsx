@@ -36,7 +36,7 @@ const StarRating = ({ value, onChange, disabled }) => {
                     onClick={() => onChange(star)}
                     className="text-2xl focus:outline-none transition-transform hover:scale-110"
                     style={{ background: 'none', border: 'none', padding: '2px', cursor: disabled ? 'not-allowed' : 'pointer' }}>
-                    <FontAwesomeIcon icon={faStar} style={{ color: star <= (hovered || value) ? '#eab308' : '#d1d5db' }} />
+                    <FontAwesomeIcon icon={faStar} style={{ color: star <= (hovered || value) ? '#7C7FFF' : '#d1d5db' }} />
                 </button>
             ))}
             <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
@@ -465,8 +465,8 @@ const Product = () => {
                                 </div>
 
                                 <Button onClick={() => toggleModal('add')}
-                                    className="rounded-md border-0 shadow-md px-4 py-2 text-black"
-                                    style={{ background: "#eab308" }}>
+                                    className="rounded-md border-0 shadow-md px-4 py-2 text-white"
+                                    style={{ background: "#7C7FFF" }}>
                                     <FontAwesomeIcon icon={faPlus} className="pe-2" /> Add Product
                                 </Button>
                             </div>
@@ -788,8 +788,8 @@ const Product = () => {
                                     Discard
                                 </button>
                                 <button type="submit" disabled={isSubmitting}
-                                    className="px-8 py-2.5 text-black rounded-lg transition-colors text-sm font-semibold disabled:opacity-50 min-w-[120px] flex items-center justify-center"
-                                    style={{ backgroundColor: "#eab308" }}>
+                                    className="px-8 py-2.5 text-white rounded-lg transition-colors text-sm font-semibold disabled:opacity-50 min-w-[120px] flex items-center justify-center"
+                                    style={{ backgroundColor: "#7C7FFF" }}>
                                     {isSubmitting ? <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" /> : id ? 'Save Product' : 'Add Product'}
                                 </button>
                             </div>
