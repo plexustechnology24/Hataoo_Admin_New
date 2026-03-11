@@ -1,8 +1,7 @@
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-    faTrash, faInfoCircle, faLink,
+import { faInfoCircle, faLink,
     faQrcode, faCopy,
     faDownload,
     faArrowRotateLeft,
@@ -95,15 +94,12 @@ const ResetConfirmPopup = ({ item, index, onConfirm, onCancel }) => (
 const QrCard = ({
     item,
     index,
-    onDelete,
     onInfo,
     isSelected,
-    onSelect,
     onDownload,
     onReset,
     onMarkAsPrinted,
     isPrintLoading,
-    type,
 }) => {
     const [showResetPopup, setShowResetPopup] = useState(false);
 
@@ -119,14 +115,6 @@ const QrCard = ({
                 ${isSelected
                     ? 'border-gray-400'
                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 hover:shadow-md dark:hover:border-gray-700'}`}>
-
-                {/* Checkbox */}
-                <div className="absolute top-2 left-2 z-10">
-                    <input type="checkbox"
-                        className="w-4 h-4 border-gray-300 rounded focus:ring-yellow-0 cursor-pointer"
-                        checked={isSelected}
-                        onChange={() => onSelect(item._id)} />
-                </div>
 
                 {/* Top-right badges */}
                 <div className="absolute top-2 right-2 z-10 flex flex-col items-end gap-1">
@@ -228,15 +216,6 @@ const QrCard = ({
                                 ) : (
                                     <FontAwesomeIcon icon={item.isPrinted ? faCheckCircle : faPrint} />
                                 )}
-                            </button>
-                        )}
-
-                        {/* Delete */}
-                        {item.qrtype === "sample" && (
-                            <button onClick={() => onDelete(item._id)}
-                                className="flex items-center gap-1.5 text-sm text-red-500 hover:text-red-700 dark:hover:text-red-300 transition-colors px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
-                                title="Delete">
-                                <FontAwesomeIcon icon={faTrash} />
                             </button>
                         )}
 

@@ -46,12 +46,12 @@ const onlineItems: NavItem[] = [
 const offlineItems: NavItem[] = [
   {
     icon: <FontAwesomeIcon icon={faQrcode} />,
-    name: "Sample Qr Codes",
+    name: "Sample Qr Codes Generate",
     path: "/offline/sample-qr-codes",
   },
   {
     icon: <FontAwesomeIcon icon={faQrcode} />,
-    name: "Qr Codes",
+    name: "Qr Codes Generate",
     path: "/offline/qr-codes",
   },
   

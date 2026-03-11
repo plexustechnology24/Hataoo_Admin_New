@@ -3,27 +3,80 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCalendarAlt, faChevronDown } from "@fortawesome/free-solid-svg-icons";
 
 /* ══════════════════════════════════════════════════════════════════
-   DATE RANGE OPTIONS — dynamically labelled
+   HELPER — format a Date to DD-M-YYYY
+══════════════════════════════════════════════════════════════════ */
+const fmt = (date) => {
+    if (!date) return "";
+    const d = date.getDate();
+    const m = date.getMonth() + 1;
+    const y = date.getFullYear();
+    return `${d}-${m}-${y}`;
+};
+
+/* ══════════════════════════════════════════════════════════════════
+   DATE RANGE OPTIONS — dynamically labelled with real dates
 ══════════════════════════════════════════════════════════════════ */
 const buildOptions = () => {
     const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    /* Today */
+    const todayStr = fmt(now);
+
+    /* Yesterday */
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const yesterdayStr = fmt(yesterday);
+
+    /* This Week (Sun – Sat) */
+    const thisWeekStart = new Date(now);
+    thisWeekStart.setDate(now.getDate() - now.getDay());
+    const thisWeekEnd = new Date(thisWeekStart);
+    thisWeekEnd.setDate(thisWeekStart.getDate() + 6);
+    const thisWeekStr = `${fmt(thisWeekStart)} – ${fmt(thisWeekEnd)}`;
+
+    /* Last Week (Sun – Sat) */
+    const lastWeekStart = new Date(now);
+    lastWeekStart.setDate(now.getDate() - now.getDay() - 7);
+    const lastWeekEnd = new Date(lastWeekStart);
+    lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
+    const lastWeekStr = `${fmt(lastWeekStart)} – ${fmt(lastWeekEnd)}`;
+
+    /* This Month */
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const thisMonthName = now.toLocaleString("en-US", { month: "long" });
-    const thisYear = now.getFullYear();
-    const lastMonthDate = new Date(thisYear, now.getMonth() - 1, 1);
+    const thisMonthStr = `${fmt(thisMonthStart)} – ${fmt(thisMonthEnd)}`;
+
+    /* Last Month */
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthName = lastMonthDate.toLocaleString("en-US", { month: "long" });
     const lastMonthYear = lastMonthDate.getFullYear();
+    const lastMonthStr = `${fmt(lastMonthStart)} – ${fmt(lastMonthEnd)}`;
+
+    /* This Year */
+    const thisYearStart = new Date(now.getFullYear(), 0, 1);
+    const thisYearEnd = new Date(now.getFullYear(), 11, 31);
+    const thisYearStr = `${fmt(thisYearStart)} – ${fmt(thisYearEnd)}`;
+
+    /* Last Year */
+    const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+    const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31);
+    const lastYearStr = `${fmt(lastYearStart)} – ${fmt(lastYearEnd)}`;
 
     return [
-        { label: "Today", value: "today" },
-        { label: "Yesterday", value: "yesterday" },
-        { label: "This Week (Sunday to Saturday)", value: "thisWeek" },
-        { label: "Last Week (Sunday to Saturday)", value: "lastWeek" },
-        { label: `This Month (${thisMonthName} ${thisYear})`, value: "thisMonth" },
-        { label: `Last Month (${lastMonthName} ${lastMonthYear})`, value: "lastMonth" },
-        { label: `This Year (${thisYear})`, value: "thisYear" },
-        { label: `Last Year (${thisYear - 1})`, value: "lastYear" },
-        { label: "Lifetime", value: "lifetime" },
-        { label: "Custom Range", value: "custom" },
+        { label: "Today", date: todayStr, value: "today" },
+        { label: "Yesterday", date: yesterdayStr, value: "yesterday" },
+        { label: "This Week (Sun – Sat)", date: thisWeekStr, value: "thisWeek" },
+        { label: "Last Week (Sun – Sat)", date: lastWeekStr, value: "lastWeek" },
+        { label: `This Month (${thisMonthName})`, date: thisMonthStr, value: "thisMonth" },
+        { label: `Last Month (${lastMonthName} ${lastMonthYear})`, date: lastMonthStr, value: "lastMonth" },
+        { label: `This Year (${now.getFullYear()})`, date: thisYearStr, value: "thisYear" },
+        { label: `Last Year (${now.getFullYear() - 1})`, date: lastYearStr, value: "lastYear" },
+        { label: "Lifetime", date: "All time", value: "lifetime" },
+        { label: "Custom Range", date: null, value: "custom" },
     ];
 };
 
@@ -132,7 +185,6 @@ const DateRangeFilter = ({ selectedKey = DEFAULT_DATE_KEY, onChange, onClear }) 
         let resolvedFrom = customFrom;
         let resolvedTo = customTo;
 
-        // If only start date is provided, auto-set end date to the same date
         if (pendingKey === "custom" && resolvedFrom && !resolvedTo) {
             resolvedTo = resolvedFrom;
             setCustomTo(resolvedFrom);
@@ -170,7 +222,7 @@ const DateRangeFilter = ({ selectedKey = DEFAULT_DATE_KEY, onChange, onClear }) 
 
             {/* Dropdown panel */}
             {open && (
-                <div className="absolute left-0 top-12 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl w-[500px] overflow-hidden">
+                <div className="absolute left-0 top-12 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl w-[520px] overflow-hidden">
                     {/* Header */}
                     <div className="px-4 pt-4 pb-2">
                         <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
@@ -184,8 +236,8 @@ const DateRangeFilter = ({ selectedKey = DEFAULT_DATE_KEY, onChange, onClear }) 
                             <label
                                 key={opt.value}
                                 className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors
-        ${pendingKey === opt.value
-                                        ? "bg-[#dbeafe] dark:bg-red-900/20"
+                                    ${pendingKey === opt.value
+                                        ? "bg-[#dbeafe] dark:bg-blue-900/20"
                                         : "hover:bg-gray-50 dark:hover:bg-gray-700"
                                     }`}
                             >
@@ -195,13 +247,18 @@ const DateRangeFilter = ({ selectedKey = DEFAULT_DATE_KEY, onChange, onClear }) 
                                     value={opt.value}
                                     checked={pendingKey === opt.value}
                                     onChange={() => setPendingKey(opt.value)}
-                                    className="w-4 h-4 cursor-pointer"
+                                    className="w-4 h-4 cursor-pointer shrink-0"
                                 />
-                                <span
-                                    className={`text-sm text-gray-700 dark:text-gray-300" }`}
-                                >
-                                    {opt.label}
-                                </span>
+                                <div className="flex flex-col min-w-0">
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 leading-tight">
+                                        {opt.label}
+                                    </span>
+                                    {opt.date && (
+                                        <span className="text-xs text-gray-400 dark:text-gray-500 leading-tight mt-0.5 truncate">
+                                            {opt.date}
+                                        </span>
+                                    )}
+                                </div>
                             </label>
                         ))}
                     </div>
@@ -217,7 +274,7 @@ const DateRangeFilter = ({ selectedKey = DEFAULT_DATE_KEY, onChange, onClear }) 
                                     type="date"
                                     value={customFrom}
                                     onChange={(e) => setCustomFrom(e.target.value)}
-                                    className="w-full h-9 px-3 rounded-lg border border-gray-200 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-300 dark:bg-gray-700 focus:outline-none focus:border-red-400"
+                                    className="w-full h-9 px-3 rounded-lg border border-gray-200 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-300 dark:bg-gray-700 focus:outline-none focus:border-blue-400"
                                 />
                             </div>
                             <div className="flex-1">
@@ -228,7 +285,7 @@ const DateRangeFilter = ({ selectedKey = DEFAULT_DATE_KEY, onChange, onClear }) 
                                     type="date"
                                     value={customTo}
                                     onChange={(e) => setCustomTo(e.target.value)}
-                                    className="w-full h-9 px-3 rounded-lg border border-gray-200 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-300 dark:bg-gray-700 focus:outline-none focus:border-red-400"
+                                    className="w-full h-9 px-3 rounded-lg border border-gray-200 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-300 dark:bg-gray-700 focus:outline-none focus:border-blue-400"
                                 />
                             </div>
                         </div>
