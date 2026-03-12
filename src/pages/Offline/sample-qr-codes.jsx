@@ -45,7 +45,6 @@ const SampleQrcode = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const searchContainerRef = useRef(null);
     const [statusFilter, setStatusFilter] = useState('');
-    const [allBatchNames, setAllBatchNames] = useState([]);
     const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
     const filterDropdownRef = useRef(null);
 
@@ -142,12 +141,6 @@ const SampleQrcode = () => {
         setCurrentPage(1); getData(1, searchTerm.trim(), statusFilter, { fromDate, toDate });
     };
 
-    const getBatchNames = useCallback(() => {
-        axios.get('https://api.hataoo.in/api/qr-code/get/batch-names', { params: { qrtype: 'sample' } })
-            .then(res => setAllBatchNames(res.data.data || []))
-            .catch(() => { });
-    }, []);
-
     const getData = useCallback((page = 1, search = '', status = '', dr = null) => {
         setLoading(true);
         const params = { page, limit: ITEMS_PER_PAGE, qrtype: 'sample' };
@@ -155,7 +148,7 @@ const SampleQrcode = () => {
         if (status !== '') params.isActive = status;
         if (dr?.fromDate) params.fromDate = dr.fromDate;
         if (dr?.toDate) params.toDate = dr.toDate;
-        axios.get('https://api.hataoo.in/api/qr-code', { params })
+        axios.get('http://localhost:3001/api/qr-code', { params })
             .then((res) => {
                 setFilteredData(res.data.data || []); setMeta(res.data.meta);
                 if (res.data.meta) setCurrentPage(res.data.meta.page || page);
@@ -165,7 +158,7 @@ const SampleQrcode = () => {
             .finally(() => setLoading(false));
     }, []);
 
-    useEffect(() => { getData(1, '', '', dateRange); getBatchNames(); }, [getData, getBatchNames]);
+    useEffect(() => { getData(1, '', '', dateRange); }, [getData, dateRange]);
 
     const fetchSvgContent = async (url) => {
         if (!url) return null;
@@ -174,7 +167,11 @@ const SampleQrcode = () => {
                 const base64 = url.split(",")[1];
                 return atob(base64);
             }
-            const res = await fetch(url);
+
+            // Proxy through backend to bypass S3 CORS
+            const proxyUrl = `http://localhost:3001/api/proxy-image?url=${encodeURIComponent(url)}`;
+            const res = await fetch(proxyUrl);
+            if (!res.ok) throw new Error("Proxy fetch failed");
             return await res.text();
         } catch {
             return null;
@@ -225,7 +222,7 @@ const SampleQrcode = () => {
         for (let i = 0; i < currentItems.length; i++) {
             const item = currentItems[i];
             try {
-                await axios.put(`https://api.hataoo.in/api/qr-code/update2/${item.code}`, { isPrinted: !item.isPrinted });
+                await axios.put(`http://localhost:3001/api/qr-code/update2/${item.code}`, { isPrinted: !item.isPrinted });
                 successCount++;
                 setPrintProgress({ done: i + 1, total: currentItems.length });
             } catch { failCount++; }
@@ -240,7 +237,7 @@ const SampleQrcode = () => {
 
     const handleResetQr = async (item) => {
         try {
-            await axios.put(`https://api.hataoo.in/api/qr-code/update2/${item.code}`, {
+            await axios.put(`http://localhost:3001/api/qr-code/update2/${item.code}`, {
                 language: null, carNumberPlate: null, name: null,
                 contactNumber: null, contactVerified: false, isActive: false,
                 emergencyDetails: { emergencyContacts: [], bloodGroup: null, healthInsuranceCompany: null, notes: null }
@@ -277,7 +274,7 @@ const SampleQrcode = () => {
     const closeDeleteModal = () => setDeleteModal({ isOpen: false, id: null, isBulk: false, batchIndex: null });
 
     const handleDeleteSelected = () => {
-        axios.post('https://api.hataoo.in/api/admin/deleteMultiple', { ids: selectedItems, TypeId: "3" })
+        axios.post('http://localhost:3001/api/admin/deleteMultiple', { ids: selectedItems, TypeId: "3" })
             .then(() => {
                 toast.success(`Successfully deleted ${selectedItems.length} QR codes.`);
                 getData(currentItems.length - selectedItems.length <= 0 && currentPage > 1 ? currentPage - 1 : currentPage, searchTerm, statusFilter, dateRange);
@@ -286,12 +283,12 @@ const SampleQrcode = () => {
             .finally(() => { closeDeleteModal(); });
     };
 
-    const clearAllFilters = () => {
-        const dr = defaultDateRange();
-        setSearchTerm(''); setStatusFilter(''); setSelectedItems([]); setCurrentPage(1);
-        setDateKey(DEFAULT_DATE_KEY); setDateRange(dr);
-        getData(1, '', '', dr); toast.info("All filters cleared");
-    };
+    // const clearAllFilters = () => {
+    //     const dr = defaultDateRange();
+    //     setSearchTerm(''); setStatusFilter(''); setSelectedItems([]); setCurrentPage(1);
+    //     setDateKey(DEFAULT_DATE_KEY); setDateRange(dr);
+    //     getData(1, '', '', dr); toast.info("All filters cleared");
+    // };
 
     // ── Form helpers ──────────────────────────────────────────────────────────
     const resetForm = () => {
@@ -337,18 +334,18 @@ const SampleQrcode = () => {
             const numBatches = formQuantity / 16;
             const autoBatchNames = Array.from({ length: numBatches }, (_, i) => `sample${lastNum + i + 1}`);
 
-            const res = await axios.post('https://api.hataoo.in/api/qr-code/generate', {
+            const res = await axios.post('http://localhost:3001/api/qr-code/generate', {
                 quantity: Number(formQuantity),
                 qrtype: "sample",
                 batchNames: autoBatchNames,
             });
             toast.success(res.data.message || `${formQuantity} QR codes generated successfully`);
-            resetForm(); setVisible(false); getData(1, searchTerm, statusFilter, dateRange); getBatchNames();
+            resetForm(); setVisible(false); getData(1, searchTerm, statusFilter, dateRange);
         } catch (err) { toast.error(err.response?.data?.message || "An error occurred."); }
         finally { setIsSubmitting(false); }
     };
 
-    const hasActiveFilters = searchTerm || statusFilter !== '' || selectedItems.length > 0;
+    // const hasActiveFilters = searchTerm || statusFilter !== '' || selectedItems.length > 0;
     const STATUS_OPTIONS = [{ label: 'All Status', value: '' }, { label: 'Active', value: 'true' }, { label: 'Inactive', value: 'false' }];
 
     if (loading) return <Loading />;
@@ -358,18 +355,107 @@ const SampleQrcode = () => {
             <PageBreadcrumb pageTitle="Sample QR Codes" />
             <div className="flex-1 overflow-y-auto overflow-x-hidden">
                 <div className="rounded-2xl border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
-                    {allBatchNames.length > 0 && (
-                        <div className="flex items-center gap-2 flex-wrap px-6 pt-5 pb-5 border-b border-gray-100">
-                            <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">Batches:</span>
-                            {allBatchNames.map(name => (
-                                <span key={name} className="text-xs font-medium px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400">
-                                    {name}
-                                </span>
-                            ))}
-                        </div>
-                    )}
+
+                    <div className="px-6 pt-5">
+                        {displayBatches.length > 0 ? (
+                            <div className="space-y-4">
+                                {displayBatches.slice(0, 1).map((batchObj, batchIdx) => {
+                                    const batch = batchObj.items;
+                                    const batchDate = batch[0]?.createdAt ? formatDate(batch[0].createdAt) : '';
+                                    const totalInBatch = batch.length;
+                                    const printedCount = batch.filter(item => item.isPrinted).length;
+                                    const allPrinted = printedCount === totalInBatch;
+                                    const nonePrinted = printedCount === 0;
+                                    const partiallyPrinted = !allPrinted && !nonePrinted;
+
+                                    const batchLabel = batchObj.isNamed
+                                        ? batchObj.name
+                                        : `Batch #${getUnnamedBatchNumber(batchIdx)}`;
+
+                                    const batchBadge = allPrinted
+                                        ? <span className="text-xs font-medium px-3 py-1 rounded-full bg-green-100 text-green-700">✓ All Printed</span>
+                                        : partiallyPrinted
+                                            ? <span className="text-xs font-medium px-3 py-1 rounded-full bg-yellow-100 text-yellow-700">{printedCount}/{totalInBatch} Printed</span>
+                                            : <span className="text-xs font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-600">Not Printed</span>;
+
+                                    return (
+                                        <div key={batchIdx} className="bg-gray-50 dark:bg-gray-900 border-gray-200 rounded-xl p-4 hover:shadow-md transition">
+                                            <div className="flex flex-wrap items-center justify-between gap-3">
+
+                                                <div className="flex items-center gap-3 flex-wrap">
+
+                                                    <div className="flex items-center justify-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg">
+                                                        <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
+                                                            Batch
+                                                        </span>
+
+                                                        <span className="text-sm font-semibold text-gray-800">
+                                                            {batchLabel}
+                                                        </span>
+                                                    </div>
+
+                                                    <span className="text-sm font-medium bg-gray-100 px-2.5 py-1 rounded-md text-gray-700">
+                                                        {batch.length} QRs
+                                                    </span>
+
+                                                    {batchBadge}
+                                                </div>
+
+                                                {batchDate && (
+                                                    <div className="flex items-center gap-1 text-md text-gray-600 bg-gray-200 px-3 py-1 rounded-md">
+                                                        <span>📅</span>
+                                                        <span className="font-medium">{batchDate}</span>
+                                                    </div>
+                                                )}
+
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+
+                                {/* Placeholder Batch Card */}
+                                <div className="bg-gray-50 dark:bg-gray-900 border-gray-200 rounded-xl p-4 opacity-60">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+
+                                        <div className="flex items-center gap-3 flex-wrap">
+
+                                            <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg">
+                                                <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
+                                                    Batch
+                                                </span>
+
+                                                <span className="text-sm font-semibold text-gray-800">
+                                                    No Batch Yet
+                                                </span>
+                                            </div>
+
+                                            <span className="text-sm font-medium bg-gray-100 px-2.5 py-1 rounded-md text-gray-700">
+                                                0 QRs
+                                            </span>
+
+                                            <span className="text-xs font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-600">
+                                                Not Printed
+                                            </span>
+
+                                        </div>
+
+                                        <div className="flex items-center gap-1 text-md text-gray-500 bg-gray-200 px-3 py-1 rounded-md">
+                                            <span>📅</span>
+                                            <span className="font-medium">--</span>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                            </div>
+                        )}
+                    </div>
+
                     <div className="px-6">
-                        <div className="flex justify-between items-center px-4 py-3 mt-4 gap-4 flex-wrap">
+                        <div className="flex justify-between items-center px-4 py-3 gap-4 flex-wrap">
                             <div className="flex gap-3 items-center flex-wrap">
                                 {/* Search */}
                                 <div ref={searchContainerRef} className="relative">
@@ -427,30 +513,6 @@ const SampleQrcode = () => {
                                 <FontAwesomeIcon icon={faPlus} className="pe-2" /> Generate QR
                             </Button>
                         </div>
-
-                        {/* Bulk action bar */}
-                        <div className="flex gap-4 items-center justify-between flex-wrap mt-3 ps-4">
-                            <div className="flex gap-4 items-center flex-wrap">
-                                {currentItems.length > 0 && (
-                                    <Button onClick={handleMarkAllAsPrinted} disabled={isPrinting}
-                                        className="d-flex align-items-center gap-2 py-1 ps-1"
-                                        style={{ fontSize: "14px", color: isPrinting ? "#9ca3af" : "#2563eb", border: "none", background: "transparent" }}>
-                                        {isPrinting ? (
-                                            <><div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin me-2" style={{ display: 'inline-block' }} />
-                                                <span>MARKING... ({printProgress.done}/{printProgress.total})</span></>
-                                        ) : (
-                                            <><FontAwesomeIcon icon={faPrint} className="pe-2" />
-                                                <span>MARK ALL AS PRINTED ({currentItems.filter(i => !i.isPrinted).length})</span></>
-                                        )}
-                                    </Button>
-                                )}
-                            </div>
-                            {hasActiveFilters && (
-                                <Button onClick={clearAllFilters} variant="outline-secondary" className="d-flex align-items-center gap-2 py-1 border-0 bg-transparent" style={{ fontSize: "14px", color: "#f13838" }}>
-                                    CLEAR ALL
-                                </Button>
-                            )}
-                        </div>
                     </div>
 
                     {/* QR Grid — grouped by qrBatchName */}
@@ -459,7 +521,6 @@ const SampleQrcode = () => {
                             <div className="space-y-6">
                                 {displayBatches.map((batchObj, batchIdx) => {
                                     const batch = batchObj.items;
-                                    const batchDate = batch[0]?.createdAt ? formatDate(batch[0].createdAt) : '';
                                     const batchHasActive = batch.some(item => item.isActive);
                                     const batchIsFull = batch.length === 16;
 
@@ -468,17 +529,6 @@ const SampleQrcode = () => {
                                     const allPrinted = printedCount === totalInBatch;
                                     const nonePrinted = printedCount === 0;
                                     const partiallyPrinted = !allPrinted && !nonePrinted;
-
-                                    const batchLabel = batchObj.isNamed
-                                        ? batchObj.name
-                                        : `Batch #${getUnnamedBatchNumber(batchIdx)}`;
-
-                                    const batchBadge = allPrinted
-                                        ? <span className="text-[13px] font-medium px-4 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">✓ All Printed</span>
-                                        : partiallyPrinted
-                                            ? <span className="text-[13px] font-medium px-4 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400">⚡ {printedCount}/{totalInBatch} Printed</span>
-                                            : <span className="text-[13px] font-medium px-4 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">Not Printed</span>;
-
                                     const batchBgClass = allPrinted
                                         ? "bg-[#7d7fff]/10 dark:bg-[#7d7fff]/10"
                                         : partiallyPrinted
@@ -487,29 +537,33 @@ const SampleQrcode = () => {
 
                                     return (
                                         <div key={batchIdx} className={`relative rounded-xl p-3 ${batchBgClass}`}>
-                                            <div className="flex items-center justify-between mb-3 px-1">
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="inline-flex items-center gap-2 bg-blue-100 border border-blue-300 px-3 py-1.5 rounded-lg shadow-sm">
-                                                        <span className="text-sm font-semibold text-blue-800 uppercase tracking-wide">
-                                                            Batch -
-                                                        </span>
-
-                                                        <span className="text-sm font-semibold text-gray-800">
-                                                            {batchLabel}
-                                                        </span>
-
-                                                        <span className="text-xs text-gray-600 bg-white px-2 py-0.5 rounded-md border">
-                                                            {batch.length} QRs
-                                                        </span>
-                                                    </span>
-                                                    {batchBadge}
-                                                </div>
+                                            <div className="flex items-center justify-end mb-3 px-1">
                                                 <div className="flex items-center gap-3">
-                                                    {batchDate && (
-                                                        <span className="text-sm text-gray-600 dark:text-gray-100 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
-                                                            🗓 {batchDate}
-                                                        </span>
-                                                    )}
+                                                    <div className="flex gap-4 items-center flex-wrap">
+                                                        {currentItems.length > 0 && batchIsFull && !searchTerm && statusFilter === '' && (<Button onClick={handleMarkAllAsPrinted} disabled={isPrinting}
+                                                            className="d-flex align-items-center gap-2 py-1 ps-1"
+                                                            style={{ fontSize: "14px", color: isPrinting ? "#9ca3af" : "#2563eb", border: "none", background: "transparent" }}>
+                                                            {isPrinting ? (
+                                                                <><div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin me-2" style={{ display: 'inline-block' }} />
+                                                                    <span>MARKING... ({printProgress.done}/{printProgress.total})</span></>
+                                                            ) : (
+                                                                <>
+                                                                    <FontAwesomeIcon icon={faPrint} className="pe-2" />
+
+                                                                    {currentItems.every(i => i.isPrinted) ? (
+                                                                        <span>
+                                                                            Mark all as unprinted ({currentItems.length})
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span>
+                                                                            Mark all as printed ({currentItems.filter(i => !i.isPrinted).length})
+                                                                        </span>
+                                                                    )}
+                                                                </>
+                                                            )}
+                                                        </Button>
+                                                        )}
+                                                    </div>
 
                                                     {batchIsFull && !searchTerm && statusFilter === '' && (
                                                         <button
@@ -519,7 +573,7 @@ const SampleQrcode = () => {
                                                             title={`Download all ${batch.length} QRs as "${batchObj.isNamed ? batchObj.name : 'Batch'}.zip"`}
                                                             className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1 rounded-lg border transition-colors ${isZipping ? 'border-gray-200 text-gray-300 cursor-not-allowed dark:border-gray-700 dark:text-gray-600' : 'border-green-200 text-green-600 hover:bg-green-50 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/20'}`}>
                                                             {isZipping
-                                                                ? <div className="w-3 h-3 border-2 border-green-300 border-t-transparent rounded-full animate-spin" />
+                                                                ? <div className="w-3 h-3 border-2 border-green-300border-t-transparent rounded-full animate-spin" />
                                                                 : <FontAwesomeIcon icon={faDownload} className="text-[10px]" />}
                                                             Download Batch
                                                         </button>

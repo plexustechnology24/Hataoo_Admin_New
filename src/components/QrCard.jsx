@@ -116,20 +116,19 @@ const QrCard = ({
                     ? 'border-gray-400'
                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 hover:shadow-md dark:hover:border-gray-700'}`}>
 
-                {/* Top-right badges */}
+                {/* ── Top badges row: number (left) + New (right) ── */}
+                <div className="absolute top-2 left-2 z-10">
+                    <span className="inline-flex items-center justify-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-[11px] font-bold px-2 rounded-full h-5 leading-none shadow-sm">
+                        #{index}
+                    </span>
+                </div>
+
                 <div className="absolute top-2 right-2 z-10 flex flex-col items-end gap-1">
                     {isNew && (
                         <span className="flex items-center justify-center bg-green-50 text-green-600 text-[10px] border border-green-300 px-2 rounded-full h-5 leading-none tracking-wide shadow-sm">
                             New
                         </span>
                     )}
-                    {/* Printed badge */}
-                    {/* {item.isPrinted && (
-                        <span className="flex items-center gap-1 bg-blue-50 text-blue-600 text-[10px] border border-blue-200 px-2 rounded-full h-5 leading-none tracking-wide shadow-sm">
-                            <FontAwesomeIcon icon={faCheckCircle} className="text-[9px]" />
-                            Printed
-                        </span>
-                    )} */}
                 </div>
 
                 {/* QR Image */}
@@ -206,7 +205,7 @@ const QrCard = ({
                                 disabled={isPrintLoading || item.isPrinted}
                                 title={item.isPrinted ? "Already Printed" : "Mark as Printed"}
                                 className={`flex items-center gap-1.5 text-sm transition-colors px-2 py-1 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed
-      ${item.isPrinted
+                                    ${item.isPrinted
                                         ? 'text-gray-400'
                                         : 'text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20'
                                     }`}
