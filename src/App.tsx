@@ -11,6 +11,8 @@ import HowToWork from "./pages/Online/howtowork";
 import Product from "./pages/Online/product";
 import SampleQrcode from "./pages/Offline/sample-qr-codes";
 import Qrcode from "./pages/Offline/qr-codes";
+import TestingNo from "./pages/Other/testingNo";
+import Report from "./pages/Other/report";
 
 
 export default function App() {
@@ -27,6 +29,8 @@ export default function App() {
           <Route path="offline/sample-qr-codes" element={<AdminProtect><SampleQrcode /></AdminProtect>} />
           <Route path="online/how-to-work" element={<AdminProtect><HowToWork /></AdminProtect>} />
           <Route path="online/product" element={<AdminProtect><Product /></AdminProtect>} />
+          <Route path="testing-numbers" element={<AdminProtect><TestingNo /></AdminProtect>} />
+          <Route path="report-message" element={<AdminProtect><Report /></AdminProtect>} />
           {/* Fallback Route */}
           <Route path="*" element={<AdminProtect><Ecommerce /></AdminProtect>} />
         </Route>

@@ -11,7 +11,8 @@ import {
 
 import logo from "../assest/logo.png";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPencil, faQrcode, faTag } from "@fortawesome/free-solid-svg-icons";
+import { faPencil, faPhoneAlt, faQrcode, faTag } from "@fortawesome/free-solid-svg-icons";
+import { faFlag } from "@fortawesome/free-regular-svg-icons";
 
 type NavItem = {
   name: string;
@@ -25,6 +26,16 @@ const navItems: NavItem[] = [
     icon: <GridIcon />,
     name: "Dashboard",
     path: "/",
+  },
+  {
+    icon: <FontAwesomeIcon icon={faPhoneAlt} />,
+    name: "Testing Numbers",
+    path: "/testing-numbers",
+  },
+  {
+    icon: <FontAwesomeIcon icon={faFlag} />,
+    name: "Report Message",
+    path: "/report-message",
   },
 ];
 
