@@ -4,7 +4,6 @@ import 'react-toastify/dist/ReactToastify.css';
 import AppLayout from "./layout/AppLayout";
 import AuthLayout from "./layout/AuthLayout";
 import SignIn from "./pages/AuthPages/SignIn";
-import Ecommerce from "./pages/Dashboard/ECommerce";
 import AdminProtect from "./components/AdminProtect";
 import { TooltipProvider } from "./components/ui/tooltip";
 import HowToWork from "./pages/Online/howtowork";
@@ -13,6 +12,8 @@ import SampleQrcode from "./pages/Offline/sample-qr-codes";
 import Qrcode from "./pages/Offline/qr-codes";
 import TestingNo from "./pages/Other/testingNo";
 import Report from "./pages/Other/report";
+import OfflineOrders from "./pages/Other/offlineOrder";
+import MoreDashboard from "./pages/Dashboard/ECommerce";
 
 
 export default function App() {
@@ -22,7 +23,7 @@ export default function App() {
       <Routes>
         {/* Dashboard Layout */}
         <Route element={<AppLayout />}>
-          <Route index element={<AdminProtect><Ecommerce /></AdminProtect>} />
+          <Route index element={<AdminProtect><MoreDashboard /></AdminProtect>} />
 
           {/* All Page */}
           <Route path="offline/qr-codes" element={<AdminProtect><Qrcode /></AdminProtect>} />
@@ -31,8 +32,9 @@ export default function App() {
           <Route path="online/product" element={<AdminProtect><Product /></AdminProtect>} />
           <Route path="testing-numbers" element={<AdminProtect><TestingNo /></AdminProtect>} />
           <Route path="report-message" element={<AdminProtect><Report /></AdminProtect>} />
+          <Route path="offline-orders" element={<AdminProtect><OfflineOrders /></AdminProtect>} />
           {/* Fallback Route */}
-          <Route path="*" element={<AdminProtect><Ecommerce /></AdminProtect>} />
+          <Route path="*" element={<AdminProtect><MoreDashboard /></AdminProtect>} />
         </Route>
 
         {/* Auth Layout */}

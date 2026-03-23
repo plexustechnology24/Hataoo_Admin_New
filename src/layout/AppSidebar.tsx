@@ -11,7 +11,7 @@ import {
 
 import logo from "../assest/logo.png";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPencil, faPhoneAlt, faQrcode, faTag } from "@fortawesome/free-solid-svg-icons";
+import { faClipboardList, faPhoneAlt, faQrcode } from "@fortawesome/free-solid-svg-icons";
 import { faFlag } from "@fortawesome/free-regular-svg-icons";
 
 type NavItem = {
@@ -28,34 +28,6 @@ const navItems: NavItem[] = [
     path: "/",
   },
   {
-    icon: <FontAwesomeIcon icon={faPhoneAlt} />,
-    name: "Testing Numbers",
-    path: "/testing-numbers",
-  },
-  {
-    icon: <FontAwesomeIcon icon={faFlag} />,
-    name: "Report Message",
-    path: "/report-message",
-  },
-];
-
-// 🔹 New online nav items
-const onlineItems: NavItem[] = [
-  {
-    icon: <FontAwesomeIcon icon={faPencil} />,
-    name: "How to Work",
-    path: "/online/how-to-work",
-  },
-  {
-    icon: <FontAwesomeIcon icon={faTag} />,
-    name: "Product",
-    path: "/online/product",
-  },
-];
-
-// 🔹 New offline nav items
-const offlineItems: NavItem[] = [
-  {
     icon: <FontAwesomeIcon icon={faQrcode} />,
     name: "Sample Qr Codes Generate",
     path: "/offline/sample-qr-codes",
@@ -65,8 +37,23 @@ const offlineItems: NavItem[] = [
     name: "Qr Codes Generate",
     path: "/offline/qr-codes",
   },
-  
+  {
+    icon: <FontAwesomeIcon icon={faPhoneAlt} />,
+    name: "Testing Numbers",
+    path: "/testing-numbers",
+  },
+  {
+    icon: <FontAwesomeIcon icon={faFlag} />,
+    name: "Report Message",
+    path: "/report-message",
+  },
+  {
+    icon: <FontAwesomeIcon icon={faClipboardList} />,
+    name: "Offline Orders",
+    path: "/offline-orders",
+  },
 ];
+
 
 
 
@@ -75,19 +62,15 @@ const AppSidebar: React.FC = () => {
   const location = useLocation();
 
   const [openSubmenu, setOpenSubmenu] = useState<{
-    type: "main" | "online" | "offline";
+    type: "main";
     index: number;
   } | null>(null);
   
   // 🔹 New state for section dropdowns
   const [openSections, setOpenSections] = useState<{
     general: boolean;
-    online: boolean;
-    offline: boolean;
   }>({
     general: true,
-    online: false,
-    offline: false,
   });
 
   const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>({});
@@ -103,15 +86,15 @@ const AppSidebar: React.FC = () => {
 
   useEffect(() => {
     let submenuMatched = false;
-    ["main", "online", "offline"].forEach((menuType) => {
-      const items = menuType === "main" ? navItems : menuType === "online" ? onlineItems : offlineItems;
+    ["main"].forEach((menuType) => {
+      const items = navItems ;
 
       items.forEach((nav, index) => {
         if (nav.subItems) {
           nav.subItems.forEach((subItem) => {
             if (isActive(subItem.path)) {
               setOpenSubmenu({
-                type: menuType as "main" | "online" | "offline",
+                type: menuType as "main",
                 index,
               });
               submenuMatched = true;
@@ -152,7 +135,7 @@ const AppSidebar: React.FC = () => {
 
   const handleSubmenuToggle = (
     index: number,
-    menuType: "main" | "online" | "offline"
+    menuType: "main"
   ) => {
     setOpenSubmenu((prevOpenSubmenu) => {
       if (
@@ -174,7 +157,7 @@ const AppSidebar: React.FC = () => {
     }));
   };
 
-  const renderMenuItems = (items: NavItem[], menuType: "main" | "online" | "offline") => (
+  const renderMenuItems = (items: NavItem[], menuType: "main") => (
     <ul className="flex flex-col gap-4">
       {items.map((nav, index) => (
         <li key={nav.name}>
@@ -350,80 +333,6 @@ const AppSidebar: React.FC = () => {
                 }}
               >
                 {renderMenuItems(navItems, "main")}
-              </div>
-            </div>
-
-            {/* 🔹 online Section */}
-            <div>
-              <button
-                onClick={() => toggleSection("online")}
-                className={`mb-4 w-full text-xs uppercase flex items-center leading-[20px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors ${!isExpanded && !isHovered
-                    ? "lg:justify-center"
-                    : "justify-between"
-                  }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? (
-                  <>
-                    <span>Online website</span>
-                    <ChevronDownIcon
-                      className={`w-4 h-4 transition-transform duration-200 ${
-                        openSections.online ? "rotate-180" : ""
-                      }`}
-                    />
-                  </>
-                ) : (
-                  <HorizontaLDots />
-                )}
-              </button>
-              <div
-                ref={(el) => {
-                  sectionRefs.current["online"] = el;
-                }}
-                className="overflow-hidden transition-all duration-300"
-                style={{
-                  height: openSections.online
-                    ? `${sectionHeight["online"]}px`
-                    : "0px",
-                }}
-              >
-                {renderMenuItems(onlineItems, "online")}
-              </div>
-            </div>
-
-            {/* 🔹 offline Section */}
-            <div>
-              <button
-                onClick={() => toggleSection("offline")}
-                className={`mb-4 w-full text-xs uppercase flex items-center leading-[20px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors ${!isExpanded && !isHovered
-                    ? "lg:justify-center"
-                    : "justify-between"
-                  }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? (
-                  <>
-                    <span>Qr Codes</span>
-                    <ChevronDownIcon
-                      className={`w-4 h-4 transition-transform duration-200 ${
-                        openSections.offline ? "rotate-180" : ""
-                      }`}
-                    />
-                  </>
-                ) : (
-                  <HorizontaLDots />
-                )}
-              </button>
-              <div
-                ref={(el) => {
-                  sectionRefs.current["offline"] = el;
-                }}
-                className="overflow-hidden transition-all duration-300"
-                style={{
-                  height: openSections.offline
-                    ? `${sectionHeight["offline"]}px`
-                    : "0px",
-                }}
-              >
-                {renderMenuItems(offlineItems, "offline")}
               </div>
             </div>
 

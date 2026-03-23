@@ -20,7 +20,7 @@ const isNewItem = (createdAt) => {
 };
 
 /* ─── Reset Confirmation Popup ───────────────────────────────────── */
-const ResetConfirmPopup = ({ item, index, onConfirm, onCancel }) => (
+export const ResetConfirmPopup = ({ item, index, onConfirm, onCancel }) => (
     <div
         className="fixed inset-0 z-[99999] flex items-center justify-center px-4"
         style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
@@ -135,11 +135,18 @@ const QrCard = ({
                 {/* QR Image */}
                 <div className="flex items-center justify-center bg-gray-50 dark:bg-gray-600/50 px-4 pt-8 pb-3 min-h-[150px]">
                     {item.qrImage ? (
-                        <img src={item.qrImage} alt="QR Code"
-                            className="w-28 h-28 object-contain transition-transform duration-200 group-hover:scale-105"
-                            style={{ imageRendering: 'pixelated' }} />
+                        <img
+                            src={item.qrImage}
+                            alt="QR Code"
+                            onClick={() => onInfo(item)}   // ✅ ADD THIS
+                            className="w-28 h-28 object-contain cursor-pointer transition-transform duration-200 group-hover:scale-105"
+                            style={{ imageRendering: 'pixelated' }}
+                        />
                     ) : (
-                        <div className="w-28 h-28 flex items-center justify-center">
+                        <div
+                            onClick={() => onInfo(item)}   // ✅ also clickable if no image
+                            className="w-28 h-28 flex items-center justify-center cursor-pointer"
+                        >
                             <FontAwesomeIcon icon={faQrcode} className="text-5xl text-gray-300 dark:text-gray-600" />
                         </div>
                     )}
@@ -250,5 +257,6 @@ const QrCard = ({
         </>
     );
 };
+
 
 export default QrCard;

@@ -5,69 +5,222 @@ import { Button } from "react-bootstrap";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-    faSearch, faTrash, faTimes, faLock, faUnlock,
-    faQrcode, faEye,
+import { faTrash, faTimes, faLock, faUnlock,
+    faQrcode, faEye, faUser, faPhone, faHeartPulse,
+    faEnvelope, faInfoCircle, faCheckCircle, faTimesCircle,
+    faExternalLinkAlt,
 } from "@fortawesome/free-solid-svg-icons";
 import CustomPagination from "../../components/common/pagination";
 import Loading from "../../components/loading";
 import DeleteModal from "../../components/deleteModal";
 
-// ─── Detail Modal ──────────────────────────────────────────────────────────────
-const DetailModal = ({ item, onClose, onDelete, onToggleBlock, blockingId }) => {
-    if (!item) return null;
-    const isBlocked = item.isBlocked;
-    const isProcessing = blockingId === item._id;
-    const reqCount = item.requestCount ?? 0;
 
+// ─── Shared tiny helpers ───────────────────────────────────────────────────────
+
+const InfoRow = ({ label, value }) => {
+    if (!value && value !== false && value !== 0) return null;
     return (
-        <div
-            className="fixed inset-0 bg-black/55 backdrop-blur-sm z-[1050] flex items-center justify-center p-4 animate-fade-in"
-            onClick={onClose}
-        >
-            <div
-                className="bg-white dark:bg-[#1a1a2e] dark:border dark:border-[#2a2a40] rounded-2xl shadow-2xl w-full max-w-[560px] max-h-[88vh] overflow-hidden flex flex-col"
-                onClick={e => e.stopPropagation()}
-            >
-                {/* Head */}
-                <div className="px-5 pt-[18px] pb-[14px] border-b border-gray-100 dark:border-[#2a2a40] flex items-start justify-between gap-3 flex-shrink-0">
-                    <div>
-                        <p className="text-[15px] font-bold text-slate-900 dark:text-slate-200 m-0 mb-0.5">
-                            <FontAwesomeIcon icon={faQrcode} className="mr-2 text-blue-500" />
-                            {item.code}
-                        </p>
-                        <p className="text-[12px] text-slate-400 m-0">
-                            {reqCount} request{reqCount !== 1 ? 's' : ''} recorded
-                        </p>
+        <div className="flex flex-col gap-0.5">
+            <span className="text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                {label}
+            </span>
+            <span className="text-[12px] font-semibold text-slate-800 dark:text-slate-200 break-all">
+                {String(value)}
+            </span>
+        </div>
+    );
+};
+
+const BoolBadge = ({ label, value }) => (
+    <div className="text-center">
+        <p className="text-[9px] uppercase tracking-widest text-gray-400 mb-1">{label}</p>
+        <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full
+            ${value ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                    : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+            {value ? '✓ Yes' : '✗ No'}
+        </span>
+    </div>
+);
+
+
+// ─── Detail Modal ──────────────────────────────────────────────────────────────
+
+const DetailModal = ({ item, onClose, onDelete, onToggleBlock, blockingId, onRequestDeleted }) => {
+    const [requests, setRequests]       = useState(item?.requests || []);
+    const [deletingReqId, setDeletingReqId] = useState(null);
+    const [activeTab, setActiveTab]     = useState('messages'); // 'info' | 'messages'
+
+    // Sync when parent item changes
+    useEffect(() => { setRequests(item?.requests || []); }, [item]);
+
+    if (!item) return null;
+
+    const isBlocked    = item.isBlocked;
+    const isProcessing = blockingId === item._id;
+    const reqCount     = requests.length;
+
+    const handleDeleteRequest = async (reqId) => {
+        setDeletingReqId(reqId);
+        try {
+            await axios.delete(`https://api.hataoo.in/api/contact/report/request/delete/${reqId}`);
+            const updated = requests.filter(r => r._id !== reqId);
+            setRequests(updated);
+            toast.success("Message deleted.");
+            if (onRequestDeleted) onRequestDeleted(item._id, updated);
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Failed to delete message.");
+        } finally {
+            setDeletingReqId(null);
+        }
+    };
+
+    // ── Tab: Info ──────────────────────────────────────────────────────────────
+    const InfoTab = () => (
+        <div className="space-y-4">
+
+            {/* QR Image + Status */}
+            <div className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-[#12122a] rounded-xl border border-gray-100 dark:border-[#2a2a40]">
+                {item.qrImage ? (
+                    <img
+                        src={item.qrImage}
+                        alt="QR"
+                        className="w-[80px] h-[80px] rounded-xl border border-gray-200 dark:border-[#3a3a5c] object-cover bg-white flex-shrink-0 shadow-sm"
+                    />
+                ) : (
+                    <div className="w-[80px] h-[80px] rounded-xl border-2 border-dashed border-gray-300 dark:border-[#3a3a5c] flex items-center justify-center text-gray-300 dark:text-slate-600 text-3xl flex-shrink-0">
+                        <FontAwesomeIcon icon={faQrcode} />
                     </div>
-                    <button
-                        className="w-[30px] h-[30px] rounded-lg border border-gray-200 dark:border-[#2a2a40] bg-transparent cursor-pointer text-gray-500 dark:text-slate-400 text-base flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
-                        onClick={onClose}
-                    >
-                        ✕
-                    </button>
+                )}
+                <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-bold font-mono text-slate-800 dark:text-slate-200 mb-1">
+                        {item.code}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border
+                            ${item.isActive
+                                ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800'
+                                : 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800'}`}>
+                            <FontAwesomeIcon icon={item.isActive ? faCheckCircle : faTimesCircle} className="text-[9px]" />
+                            {item.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        {item.contactVerified && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800">
+                                <FontAwesomeIcon icon={faCheckCircle} className="text-[9px]" /> Verified
+                            </span>
+                        )}
+                        {isBlocked && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800">
+                                <FontAwesomeIcon icon={faLock} className="text-[9px]" /> Blocked
+                            </span>
+                        )}
+                        {item.qrBatchName && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800">
+                                {item.qrBatchName}
+                            </span>
+                        )}
+                    </div>
+                    {item.qrLink && (
+                        <a
+                            href={item.qrLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 mt-1.5 text-[10px] text-blue-500 hover:text-blue-600 font-mono truncate max-w-full"
+                        >
+                            <FontAwesomeIcon icon={faExternalLinkAlt} className="text-[9px]" />
+                            {item.qrLink}
+                        </a>
+                    )}
+                </div>
+            </div>
+
+            {/* Basic Info */}
+            <Section icon={faUser} title="Basic Information">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                    <InfoRow label="Owner Name"    value={item.ownerName} />
+                    <InfoRow label="Car Plate"     value={item.carNumberPlate} />
+                    <InfoRow label="Contact"       value={item.contactNumber} />
+                    <InfoRow label="Alert Message Language"      value={item.language} />
+                    <InfoRow label="QR Type"       value={item.qrtype} />
+                </div>
+            </Section>
+
+            {/* QR Settings */}
+            <Section icon={faQrcode} title="QR Settings">
+                <div className="grid grid-cols-3 gap-2">
+                    <BoolBadge label="Masked Call"     value={item.isMaskedCall} />
+                    <BoolBadge label="SMS Send"        value={item.isSmsSend} />
+                    <BoolBadge label="Emergency Show"  value={item.isEmergencyShow} />
+                </div>
+            </Section>
+
+            {/* Emergency Details */}
+            <Section icon={faHeartPulse} title="Emergency Details">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 mb-3">
+                    <InfoRow label="Blood Group"  value={item.bloodGroup} />
+                    <InfoRow label="Insurance"    value={item.insuranceCompany} />
+                    {item.emergencyNotes && (
+                        <div className="col-span-2 flex flex-col gap-0.5">
+                            <span className="text-[9px] uppercase tracking-widest text-slate-400">Notes</span>
+                            <span className="text-[12px] text-slate-600 dark:text-slate-400 leading-snug">
+                                {item.emergencyNotes}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
-                {/* Body */}
-                <div className="px-5 py-4 overflow-y-auto flex-1">
-                    {(!item.requests || item.requests.length === 0) ? (
-                        <div className="text-center py-16 text-gray-400 text-sm">
-                            <div className="text-4xl mb-3 opacity-40">
-                                <FontAwesomeIcon icon={faQrcode} />
-                            </div>
-                            No requests recorded yet.
+                {/* Emergency Contacts */}
+                {item.emergencyContacts?.length > 0 ? (
+                    <div>
+                        <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-2">
+                            <FontAwesomeIcon icon={faPhone} className="mr-1" />
+                            Emergency Contacts
+                        </p>
+                        <div className="space-y-1.5">
+                            {item.emergencyContacts.map((c, i) => (
+                                <div
+                                    key={i}
+                                    className="flex items-center justify-between bg-white dark:bg-[#1a1a2e] border border-gray-100 dark:border-[#2a2a40] rounded-lg px-3 py-2"
+                                >
+                                    <span className="text-[12px] font-semibold text-slate-700 dark:text-slate-300">
+                                        {c.relation || '—'}
+                                    </span>
+                                    <span className="text-[12px] font-mono text-slate-500 dark:text-slate-400">
+                                        {c.phoneNumber || '—'}
+                                    </span>
+                                </div>
+                            ))}
                         </div>
-                    ) : (
-                        item.requests.map((req) => (
-                            <div
-                                key={req._id}
-                                className="bg-slate-50 dark:bg-[#12122a] border border-gray-100 dark:border-[#2a2a40] rounded-xl px-[14px] py-3 mb-2.5 hover:border-blue-100 dark:hover:border-[#3b4a6b] transition-colors"
-                            >
+                    </div>
+                ) : (
+                    <p className="text-[12px] text-slate-400 text-center py-2">No emergency contacts</p>
+                )}
+            </Section>
+        </div>
+    );
+
+    // ── Tab: Messages ──────────────────────────────────────────────────────────
+    const MessagesTab = () => (
+        requests.length === 0 ? (
+            <div className="text-center py-16 text-gray-400 text-sm">
+                <div className="text-4xl mb-3 opacity-40">
+                    <FontAwesomeIcon icon={faEnvelope} />
+                </div>
+                No requests recorded yet.
+            </div>
+        ) : (
+            <div className="space-y-2">
+                {requests.map((req) => (
+                    <div
+                        key={req._id}
+                        className="bg-slate-50 dark:bg-[#12122a] border border-gray-100 dark:border-[#2a2a40] rounded-xl px-[14px] py-3 hover:border-blue-100 dark:hover:border-[#3b4a6b] transition-colors"
+                    >
+                        <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between mb-1">
                                     <span className="text-[13px] font-semibold text-slate-800 dark:text-slate-200">
                                         {req.name || '—'}
                                     </span>
-                                    <span className="text-[11px] text-slate-400">
+                                    <span className="text-[11px] text-slate-400 flex-shrink-0 ml-2">
                                         {req.createdAt ? new Date(req.createdAt).toLocaleString() : '—'}
                                     </span>
                                 </div>
@@ -78,20 +231,91 @@ const DetailModal = ({ item, onClose, onDelete, onToggleBlock, blockingId }) => 
                                     {req.message || '—'}
                                 </div>
                             </div>
-                        ))
-                    )}
+                            <button
+                                onClick={() => handleDeleteRequest(req._id)}
+                                disabled={deletingReqId === req._id}
+                                title="Delete this message"
+                                className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors border border-transparent hover:border-red-100 dark:hover:border-red-900/30 ml-1"
+                            >
+                                {deletingReqId === req._id
+                                    ? <span className="animate-spin text-[11px]">⟳</span>
+                                    : <FontAwesomeIcon icon={faTrash} className="text-[11px]" />
+                                }
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )
+    );
+
+    return (
+        <div
+            className="fixed inset-0 bg-black/55 backdrop-blur-sm z-[1050] flex items-center justify-center p-4 animate-fade-in"
+            onClick={onClose}
+        >
+            <div
+                className="bg-white dark:bg-[#1a1a2e] dark:border dark:border-[#2a2a40] rounded-2xl shadow-2xl w-full max-w-[580px] max-h-[90vh] overflow-hidden flex flex-col"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* ── Header ── */}
+                <div className="px-5 pt-[18px] pb-0 border-b border-gray-100 dark:border-[#2a2a40] flex-shrink-0">
+                    <div className="flex items-start justify-between gap-3 pb-3">
+                        <div>
+                            <p className="text-[15px] font-bold text-slate-900 dark:text-slate-200 m-0 mb-0.5">
+                                <FontAwesomeIcon icon={faQrcode} className="mr-2 text-blue-500" />
+                                {item.code}
+                            </p>
+                            <p className="text-[12px] text-slate-400 m-0">
+                                {reqCount} request{reqCount !== 1 ? 's' : ''} recorded
+                            </p>
+                        </div>
+                        <button
+                            className="w-[30px] h-[30px] rounded-lg border border-gray-200 dark:border-[#2a2a40] bg-transparent cursor-pointer text-gray-500 dark:text-slate-400 text-base flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
+                            onClick={onClose}
+                        >✕</button>
+                    </div>
+
+                    {/* ── Tabs ── */}
+                    <div className="flex gap-0">
+                        {[
+                            { key: 'info',     label: 'Info',     icon: faInfoCircle },
+                            { key: 'messages', label: `Messages (${reqCount})`, icon: faEnvelope },
+                        ].map(tab => (
+                            <button
+                                key={tab.key}
+                                onClick={() => setActiveTab(tab.key)}
+                                className={[
+                                    "relative flex items-center gap-1.5 px-4 py-2.5 text-[12px] font-semibold border-b-2 transition-all cursor-pointer bg-transparent",
+                                    activeTab === tab.key
+                                        ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                                        : "border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300",
+                                ].join(' ')}
+                            >
+                                <FontAwesomeIcon icon={tab.icon} className="text-[10px]" />
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
-                {/* Footer */}
+                {/* ── Body ── */}
+                <div className="px-5 py-4 overflow-y-auto flex-1">
+                    {activeTab === 'info'     && <InfoTab />}
+                    {activeTab === 'messages' && <MessagesTab />}
+                </div>
+
+                {/* ── Footer ── */}
                 <div className="px-5 py-3 border-t border-gray-100 dark:border-[#2a2a40] flex items-center justify-end gap-2 flex-shrink-0">
                     <button
-                        className="h-[34px] px-4 rounded-lg text-[12px] font-semibold cursor-pointer inline-flex items-center gap-1.5 border border-gray-200 dark:border-[#2a2a40] bg-transparent text-gray-500 hover:bg-slate-100 transition-colors"
+                        className="h-[34px] px-4 rounded-lg text-[12px] font-semibold cursor-pointer inline-flex items-center gap-1.5 border border-gray-200 dark:border-[#2a2a40] bg-transparent text-gray-500 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
                         onClick={onClose}
                     >
                         Close
                     </button>
                     <button
-                        className={`h-[34px] px-4 rounded-lg text-[12px] font-semibold cursor-pointer inline-flex items-center gap-1.5 text-white border-none transition-colors ${isBlocked ? 'bg-green-500 hover:bg-green-600' : 'bg-orange-500 hover:bg-orange-600'}`}
+                        className={`h-[34px] px-4 rounded-lg text-[12px] font-semibold cursor-pointer inline-flex items-center gap-1.5 text-white border-none transition-colors
+                            ${isBlocked ? 'bg-green-500 hover:bg-green-600' : 'bg-orange-500 hover:bg-orange-600'}`}
                         onClick={() => { onToggleBlock(item); onClose(); }}
                         disabled={isProcessing}
                     >
@@ -114,6 +338,23 @@ const DetailModal = ({ item, onClose, onDelete, onToggleBlock, blockingId }) => 
     );
 };
 
+
+// ─── Section wrapper (used inside InfoTab) ────────────────────────────────────
+const Section = ({ icon, title, children }) => (
+    <div>
+        <div className="flex items-center gap-2 mb-2.5">
+            <FontAwesomeIcon icon={icon} className="text-blue-400 text-[12px]" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                {title}
+            </span>
+        </div>
+        <div className="bg-slate-50 dark:bg-[#12122a] border border-gray-100 dark:border-[#2a2a40] rounded-xl p-4">
+            {children}
+        </div>
+    </div>
+);
+
+
 // ─── Single QR Card ────────────────────────────────────────────────────────────
 const QrCard = ({
     item, isSelected, isProcessing,
@@ -121,9 +362,9 @@ const QrCard = ({
     onToggleBlock, onDelete,
     animDelay,
 }) => {
-    const hot = (item.requestCount ?? 0) >= 5;
+    const hot       = (item.requestCount ?? 0) >= 5;
     const isBlocked = item.isBlocked;
-    const reqCount = item.requestCount ?? 0;
+    const reqCount  = item.requestCount ?? 0;
 
     return (
         <div
@@ -131,18 +372,13 @@ const QrCard = ({
                 "bg-white dark:bg-[#1a1a2e] rounded-2xl border overflow-hidden flex flex-col",
                 "transition-all duration-[180ms] ease-in-out",
                 "opacity-0 animate-[cardin_0.22s_ease_forwards]",
-                hot
-                    ? "border-red-300"
-                    : "border-gray-100 dark:border-[#2a2a40]",
-                isSelected
-                    ? "border-blue-400 shadow-[0_0_0_3px_rgba(96,165,250,0.18)]"
-                    : "",
+                hot      ? "border-red-300 dark:border-red-800"         : "border-gray-100 dark:border-[#2a2a40]",
+                isSelected ? "border-blue-400 shadow-[0_0_0_3px_rgba(96,165,250,0.18)]" : "",
             ].join(' ')}
             style={{ animationDelay: `${animDelay}ms` }}
         >
             {/* Top image area */}
             <div className="relative bg-slate-50 dark:bg-[#12122a] flex items-center justify-center px-4 pt-[22px] pb-4 min-h-[136px]">
-                {/* Checkbox */}
                 <div className="absolute top-2.5 left-2.5 z-[2]">
                     <input
                         type="checkbox"
@@ -152,7 +388,6 @@ const QrCard = ({
                     />
                 </div>
 
-                {/* Blocked ribbon */}
                 {isBlocked && (
                     <div className="absolute top-2.5 right-2.5 bg-red-100 dark:bg-red-900/25 text-red-700 dark:text-red-300 text-[9px] font-bold px-2 py-[3px] rounded-full flex items-center gap-1 uppercase tracking-wide">
                         <FontAwesomeIcon icon={faLock} className="text-[9px]" />
@@ -160,10 +395,10 @@ const QrCard = ({
                     </div>
                 )}
 
-                {/* QR Image */}
                 {item.qrImage ? (
                     <img
                         src={item.qrImage}
+                        onClick={() => onOpenDetail(item)}
                         alt={`QR-${item.code}`}
                         className="w-[88px] h-[88px] rounded-[10px] border bg-white border-gray-200 dark:border-[#3a3a5c] object-cover cursor-pointer transition-all duration-150 hover:opacity-85 hover:scale-[1.04]"
                         title="Click to preview QR"
@@ -180,6 +415,12 @@ const QrCard = ({
                 <div className={`font-mono text-[13px] font-semibold tracking-wide text-center ${hot ? 'text-red-700 dark:text-red-300' : 'text-slate-800 dark:text-slate-200'}`}>
                     {item.code || '—'}
                 </div>
+                {/* Owner name sub-label */}
+                {item.ownerName && (
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 m-0 text-center truncate max-w-full px-1">
+                        {item.ownerName}
+                    </p>
+                )}
                 <button
                     className={`inline-flex items-center gap-1.5 px-4 py-1 rounded-full text-sm font-medium cursor-pointer border-none outline-none transition-all duration-150 hover:opacity-85 hover:scale-[0.97] ${hot
                         ? 'bg-gradient-to-br from-red-500 to-orange-500 text-white shadow-[0_2px_8px_rgba(239,68,68,0.25)]'
@@ -194,7 +435,6 @@ const QrCard = ({
 
             {/* Actions footer */}
             <div className="flex border-t border-gray-100 dark:border-[#2a2a40]">
-                {/* View Details */}
                 <button
                     className="flex-1 h-9 border-none bg-transparent text-[11px] font-semibold cursor-pointer flex items-center justify-center gap-1.5 text-blue-600 tracking-wide border-r border-gray-100 dark:border-[#2a2a40] hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors"
                     onClick={() => onOpenDetail(item)}
@@ -203,8 +443,6 @@ const QrCard = ({
                     <FontAwesomeIcon icon={faEye} className="text-[11px]" />
                     Details
                 </button>
-
-                {/* Block / Unblock */}
                 <button
                     className={`flex-1 h-9 border-none bg-transparent text-[11px] font-semibold cursor-pointer flex items-center justify-center gap-1.5 tracking-wide border-r border-gray-100 dark:border-[#2a2a40] transition-colors ${isBlocked
                         ? 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/10'
@@ -220,8 +458,6 @@ const QrCard = ({
                     }
                     {isBlocked ? 'Unblock' : 'Block'}
                 </button>
-
-                {/* Delete */}
                 <button
                     className="flex-1 h-9 border-none bg-transparent text-[11px] font-semibold cursor-pointer flex items-center justify-center gap-1.5 text-slate-500 tracking-wide hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 dark:hover:text-red-300 transition-colors"
                     onClick={() => onDelete(item._id)}
@@ -234,33 +470,28 @@ const QrCard = ({
     );
 };
 
+
 // ─── Main Report Component ─────────────────────────────────────────────────────
 const Report = () => {
-    const [meta, setMeta] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [meta, setMeta]               = useState(null);
+    const [loading, setLoading]         = useState(true);
     const [filteredData, setFilteredData] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(15);
+    const [itemsPerPage]                = useState(15);
     const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, isBulk: false });
-    const [blockingId, setBlockingId] = useState(null);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [blockingId, setBlockingId]   = useState(null);
+    const [isDeleting, setIsDeleting]   = useState(false);
+    const [searchTerm, setSearchTerm]   = useState('');
     const [selectedItems, setSelectedItems] = useState([]);
-    const [selectAll, setSelectAll] = useState(false);
+    const [selectAll, setSelectAll]     = useState(false);
     const [detailModal, setDetailModal] = useState({ isOpen: false, item: null });
 
     const currentItems = filteredData;
 
-    // ─── Search ──────────────────────────────────────────────────────────────────
-    const handleSearch = (e) => {
-        const value = e.target.value;
-        setSearchTerm(value);
-        if (value.trim() === '') { setCurrentPage(1); getData(1, ''); }
-    };
-    const handleSearchSubmit = (e) => { e.preventDefault(); setCurrentPage(1); getData(1, searchTerm.trim()); };
-    const handleClearSearch = () => { setSearchTerm(''); setCurrentPage(1); getData(1, ''); };
+    const handleSearch        = (e) => { const v = e.target.value; setSearchTerm(v); if (v.trim() === '') { setCurrentPage(1); getData(1, ''); } };
+    const handleSearchSubmit  = (e) => { e.preventDefault(); setCurrentPage(1); getData(1, searchTerm.trim()); };
+    const handleClearSearch   = () => { setSearchTerm(''); setCurrentPage(1); getData(1, ''); };
 
-    // ─── Fetch data ───────────────────────────────────────────────────────────────
     const getData = useCallback((page = 1, search = '') => {
         setLoading(true);
         const params = { page, limit: itemsPerPage };
@@ -268,11 +499,9 @@ const Report = () => {
 
         axios.get('https://api.hataoo.in/api/contact/report/read', { params })
             .then((res) => {
-                const responseData = res.data.data || [];
-                const responsePagination = res.data.meta;
-                setFilteredData(responseData);
-                setMeta(responsePagination);
-                if (responsePagination) setCurrentPage(responsePagination.currentPage || page);
+                setFilteredData(res.data.data || []);
+                setMeta(res.data.meta);
+                if (res.data.meta) setCurrentPage(res.data.meta.currentPage || page);
                 setSelectedItems([]);
                 setSelectAll(false);
             })
@@ -282,8 +511,7 @@ const Report = () => {
 
     useEffect(() => { getData(1, ''); }, [getData]);
 
-    // ─── Select all / individual ──────────────────────────────────────────────────
-    const handleSelectAll = () => {
+    const handleSelectAll  = () => {
         if (!selectAll) setSelectedItems(currentItems.map(item => item._id));
         else setSelectedItems([]);
         setSelectAll(!selectAll);
@@ -306,8 +534,7 @@ const Report = () => {
         else setSelectAll(false);
     }, [currentItems, selectedItems]);
 
-    // ─── Delete single ────────────────────────────────────────────────────────────
-    const openDeleteModal = (deleteId = null, isBulk = false) => {
+    const openDeleteModal  = (deleteId = null, isBulk = false) => {
         if (isBulk && selectedItems.length === 0) { toast.info("No items selected."); return; }
         setDeleteModal({ isOpen: true, id: deleteId, isBulk });
     };
@@ -324,39 +551,50 @@ const Report = () => {
             .catch(() => toast.error("An error occurred. Please try again."));
     };
 
-    // ─── Bulk delete ──────────────────────────────────────────────────────────────
     const handleDeleteSelected = () => {
         setIsDeleting(true);
         axios.post('https://api.hataoo.in/api/admin/deleteMultiple', { ids: selectedItems, TypeId: "4" })
             .then(() => {
                 toast.success(`Successfully deleted ${selectedItems.length} items.`);
                 const remaining = currentItems.length - selectedItems.length;
-                const newPage = remaining <= 0 && currentPage > 1 ? currentPage - 1 : currentPage;
+                const newPage   = remaining <= 0 && currentPage > 1 ? currentPage - 1 : currentPage;
                 getData(newPage, searchTerm);
             })
             .catch(() => toast.error("Failed to delete selected items."))
             .finally(() => { setIsDeleting(false); closeDeleteModal(); });
     };
 
-    // ─── Block / Unblock ──────────────────────────────────────────────────────────
     const handleToggleBlock = async (item) => {
         const isCurrentlyBlocked = item.isBlocked;
-        const newValue = isCurrentlyBlocked;
         setBlockingId(item._id);
         try {
             await axios.put(`https://api.hataoo.in/api/qr-code/update2/${item.code}`, {
-                isMaskedCall: newValue,
-                isSmsSend: newValue,
-                isEmergencyShow: newValue,
-                isBlocked: !newValue,
+                isMaskedCall:     isCurrentlyBlocked,
+                isSmsSend:        isCurrentlyBlocked,
+                isEmergencyShow:  isCurrentlyBlocked,
+                isBlocked:        !isCurrentlyBlocked,
             });
-            toast.success(newValue ? `${item.code} blocked` : `${item.code} unblocked`);
+            toast.success(isCurrentlyBlocked ? `${item.code} unblocked` : `${item.code} blocked`);
             getData(currentPage, searchTerm);
         } catch (err) {
             toast.error(err.response?.data?.message || "Failed to update status.");
         } finally {
             setBlockingId(null);
         }
+    };
+
+    const handleRequestDeleted = (itemId, updatedRequests) => {
+        setFilteredData(prev =>
+            prev.map(d => d._id === itemId
+                ? { ...d, requestCount: updatedRequests.length, requests: updatedRequests }
+                : d
+            )
+        );
+        setDetailModal(prev =>
+            prev.isOpen && prev.item?._id === itemId
+                ? { ...prev, item: { ...prev.item, requestCount: updatedRequests.length, requests: updatedRequests } }
+                : prev
+        );
     };
 
     const clearAllFilters = () => {
@@ -387,20 +625,7 @@ const Report = () => {
 
                             {/* ── Toolbar ── */}
                             <div className="flex items-center justify-between gap-3 pb-[18px] flex-wrap">
-
-                                {/* Left: stats + bulk actions */}
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    {/* <span className="px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide bg-slate-100 dark:bg-[#1e2a45] text-slate-600 dark:text-slate-400">
-                                        {meta ? meta.total : filteredData.length} codes
-                                    </span>
-
-                                    {highlightedCount > 0 && (
-                                        <span className="px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300">
-                                            <FontAwesomeIcon icon={faFire} className="mr-1" />
-                                            {highlightedCount} high req code
-                                        </span>
-                                    )} */}
-                                    
                                     <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-500">
                                         <input
                                             type="checkbox"
@@ -413,18 +638,12 @@ const Report = () => {
 
                                     {selectedItems.length > 0 && (
                                         <div className="flex items-center gap-3">
-
-                                            {/* Delete Button (mixed style) */}
                                             <Button
                                                 onClick={() => openDeleteModal(null, true)}
                                                 disabled={isDeleting}
                                                 variant="link"
                                                 className="d-flex align-items-center py-1 px-2"
-                                                style={{
-                                                    fontSize: "14px",
-                                                    color: "#f13838",
-                                                    textDecoration: "none"
-                                                }}
+                                                style={{ fontSize: "14px", color: "#f13838", textDecoration: "none" }}
                                             >
                                                 {isDeleting ? (
                                                     <div className="w-3 h-3 border-2 border-red-500 border-t-transparent rounded-full" />
@@ -435,7 +654,6 @@ const Report = () => {
                                                     </>
                                                 )}
                                             </Button>
-
                                         </div>
                                     )}
 
@@ -451,10 +669,7 @@ const Report = () => {
                                     )}
                                 </div>
 
-                                {/* Right: select-all + search */}
                                 <div className="flex items-center gap-4">
-
-                                    {/* Search — same markup as HowToWork */}
                                     <div className="relative min-w-[200px] max-w-[360px] flex-1">
                                         <form onSubmit={handleSearchSubmit}>
                                             <div className="relative flex items-center justify-center">
@@ -465,10 +680,10 @@ const Report = () => {
                                                 </span>
                                                 <input
                                                     type="text"
-                                                    placeholder="Search code, name, phone..."
+                                                    placeholder="Search code, name, plate, phone..."
                                                     value={searchTerm}
                                                     onChange={handleSearch}
-                                                    className="dark:bg-dark-900 h-10 w-full rounded-xl border border-gray-200 bg-transparent py-2.5 pl-11 pr-10 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring focus:ring-brand-500/10 dark:border-gray-800 dark:bg-gray-900 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800 xl:w-[300px]"
+                                                    className="dark:bg-dark-900 h-10 w-full rounded-xl border border-gray-200 bg-transparent py-2.5 pl-11 pr-12 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring focus:ring-brand-500/10 dark:border-gray-800 dark:bg-gray-900 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800 xl:w-[300px]"
                                                 />
                                                 <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
                                                     {searchTerm && (
@@ -476,19 +691,30 @@ const Report = () => {
                                                             <FontAwesomeIcon icon={faTimes} className="text-[11px]" />
                                                         </button>
                                                     )}
-                                                    <button type="submit" className="text-gray-400 hover:text-blue-500 px-1">
+                                                    {/* <button type="submit" className="text-gray-400 hover:text-blue-500 px-1">
                                                         <FontAwesomeIcon icon={faSearch} className="text-[11px]" />
-                                                    </button>
+                                                    </button> */}
                                                 </div>
                                             </div>
                                         </form>
                                     </div>
+                                    
+
+
+                                {searchTerm && (
+                                    <button type="submit" onClick={handleSearchSubmit}
+                                        className="h-10 px-[15px] text-sm text-white bg-[#7C7FFF] rounded-md transition-colors"
+                                        title="Search">
+                                        Search
+                                    </button>
+                                )}
                                 </div>
                             </div>
 
                             {/* ── Card Grid ── */}
                             {currentItems.length > 0 ? (
-                                <div className="grid gap-[18px] pb-5"
+                                <div
+                                    className="grid gap-[18px] pb-5"
                                     style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))' }}
                                 >
                                     {currentItems.map((item, index) => (
@@ -534,7 +760,6 @@ const Report = () => {
                     />
                 </div>
 
-                {/* ── Delete Confirm Modal ── */}
                 <DeleteModal
                     isOpen={deleteModal.isOpen}
                     isBulk={deleteModal.isBulk}
@@ -545,7 +770,6 @@ const Report = () => {
                     onConfirm={deleteModal.isBulk ? handleDeleteSelected : handleDelete}
                 />
 
-                {/* ── Detail Modal ── */}
                 {detailModal.isOpen && (
                     <DetailModal
                         item={detailModal.item}
@@ -553,6 +777,7 @@ const Report = () => {
                         onClose={() => setDetailModal({ isOpen: false, item: null })}
                         onDelete={(id) => { setDetailModal({ isOpen: false, item: null }); openDeleteModal(id); }}
                         onToggleBlock={handleToggleBlock}
+                        onRequestDeleted={handleRequestDeleted}
                     />
                 )}
 

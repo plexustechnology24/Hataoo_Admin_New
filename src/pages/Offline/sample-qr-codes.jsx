@@ -7,7 +7,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-    faPlus, faSearch, faTrash, faTimes,
+    faPlus, faTrash, faTimes,
     faChevronDown, faFilter, faQrcode, faDownload, faPrint,
 } from "@fortawesome/free-solid-svg-icons";
 import CustomPagination from "../../components/common/pagination";
@@ -245,12 +245,34 @@ const SampleQrcode = () => {
     const handleResetQr = async (item) => {
         try {
             await axios.put(`https://api.hataoo.in/api/qr-code/update2/${item.code}`, {
-                language: null, carNumberPlate: null, name: null,
-                contactNumber: null, contactVerified: false, isActive: false,
+                language: null, carNumberPlate: null, name: null, isBlocked: false,
+                contactNumber: null, contactVerified: false, isActive: false,isMaskedCall: true , isSmsSend : true, isEmergencyShow : true,
                 emergencyDetails: { emergencyContacts: [], bloodGroup: null, healthInsuranceCompany: null, notes: null }
             });
             toast.success("QR Code reset successfully.");
-            getData(currentPage, searchTerm, statusFilter, dateRange);
+
+            const params = { page: currentPage, limit: ITEMS_PER_PAGE, qrtype: 'sample' };
+            if (searchTerm?.trim()) params.search = searchTerm.trim();
+            if (statusFilter !== '') params.isActive = statusFilter;
+            if (dateRange?.fromDate) params.fromDate = dateRange.fromDate;
+            if (dateRange?.toDate) params.toDate = dateRange.toDate;
+
+            const res = await axios.get('https://api.hataoo.in/api/qr-code', { params });
+            const freshData = res.data.data || [];
+            setFilteredData(freshData);
+            setMeta(res.data.meta);
+
+            // Update infoModal with fresh QR data so modal stays open
+            setInfoModal(prev => {
+                if (!prev.open) return prev;
+                const updatedQr = freshData.find(q => q._id === prev.qr._id);
+                if (!updatedQr) return prev;
+                const updatedBatch = prev.batchQrs.map(q =>
+                    q._id === updatedQr._id ? updatedQr : q
+                );
+                return { ...prev, qr: updatedQr, batchQrs: updatedBatch };
+            });
+
         } catch (err) {
             toast.error(err.response?.data?.message || "Failed to reset QR code.");
         }
@@ -481,20 +503,29 @@ const SampleQrcode = () => {
                                             </span>
                                             <input type="text" placeholder="Search by name, plate, contact..."
                                                 value={searchTerm} onChange={handleSearch}
-                                                className="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pl-12 pr-14 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring focus:ring-brand-500/10 dark:border-gray-800 dark:bg-gray-900 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800 xl:w-[300px]" />
-                                            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                                className="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pl-12 pr-20 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring focus:ring-brand-500/10 dark:border-gray-800 dark:bg-gray-900 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800 xl:w-[300px]" />
+                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
                                                 {searchTerm && (
                                                     <button type="button" onClick={handleClearSearch} className="inline-flex items-center px-[7px] py-[4.5px] text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400">
                                                         <FontAwesomeIcon icon={faTimes} />
                                                     </button>
                                                 )}
-                                                <button type="submit" className="inline-flex items-center px-[7px] py-[4.5px] text-xs text-gray-500 hover:text-blue-600 dark:text-gray-400">
+                                                {/* <button type="submit" className="inline-flex items-center px-[7px] py-[4.5px] text-xs text-gray-500 hover:text-blue-600 dark:text-gray-400">
                                                     <FontAwesomeIcon icon={faSearch} />
-                                                </button>
+                                                </button> */}
                                             </div>
                                         </div>
                                     </form>
                                 </div>
+
+
+                                {searchTerm && (
+                                    <button type="submit" onClick={handleSearchSubmit}
+                                        className="h-10 px-[15px] text-sm text-white bg-[#7C7FFF] rounded-md transition-colors"
+                                        title="Search">
+                                        Search
+                                    </button>
+                                )}
 
                                 {/* Status Filter */}
                                 <div ref={filterDropdownRef} className="relative">
@@ -765,6 +796,7 @@ const SampleQrcode = () => {
                     allQrs={infoModal.batchQrs}
                     currentIndex={infoModal.index}
                     batchName={infoModal.batchName}
+                    onReset={handleResetQr}
                     onNavigate={(newIdx) =>
                         setInfoModal(prev => ({
                             ...prev,
