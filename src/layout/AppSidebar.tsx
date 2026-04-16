@@ -48,9 +48,19 @@ const navItems: NavItem[] = [
     path: "/report-message",
   },
   {
-    icon: <FontAwesomeIcon icon={faClipboardList} />,
     name: "Offline Orders",
-    path: "/offline-orders",
+    icon: <FontAwesomeIcon icon={faClipboardList} />,
+    subItems: [
+      { name: "Confirm Order", path: "/offline-orders/confirm" },
+      { name: "Pending Order", path: "/offline-orders/pending" },
+    ],
+  },
+  {
+    name: "Online Orders",
+    icon: <FontAwesomeIcon icon={faClipboardList} />,
+    subItems: [
+      { name: "Contact Us", path: "/online-orders/contact-us" },
+    ],
   },
 ];
 
@@ -61,10 +71,10 @@ const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
 
-  const [openSubmenu, setOpenSubmenu] = useState<{
-    type: "main";
-    index: number;
-  } | null>(null);
+const [openSubmenu, setOpenSubmenu] = useState<{
+  type: "main";
+  index: number;
+} | null>({ type: "main", index: 5 });
   
   // 🔹 New state for section dropdowns
   const [openSections, setOpenSections] = useState<{

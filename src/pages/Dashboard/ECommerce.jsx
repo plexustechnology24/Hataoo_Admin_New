@@ -116,7 +116,7 @@ const MoreDashboard = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        axios.get("https://api.hataoo.in/api/admin/dashboard")
+        axios.get("http://localhost:3001/api/admin/dashboard")
             .then(res => setCounts(res.data.data || null))
             .catch(() => setCounts(null))
             .finally(() => setLoading(false));

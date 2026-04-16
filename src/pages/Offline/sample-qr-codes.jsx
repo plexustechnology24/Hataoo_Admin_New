@@ -155,7 +155,7 @@ const SampleQrcode = () => {
         if (status !== '') params.isActive = status;
         if (dr?.fromDate) params.fromDate = dr.fromDate;
         if (dr?.toDate) params.toDate = dr.toDate;
-        axios.get('https://api.hataoo.in/api/qr-code', { params })
+        axios.get('http://localhost:3001/api/qr-code', { params })
             .then((res) => {
                 setFilteredData(res.data.data || []); setMeta(res.data.meta);
                 if (res.data.meta) setCurrentPage(res.data.meta.page || page);
@@ -176,7 +176,7 @@ const SampleQrcode = () => {
             }
 
             // Proxy through backend to bypass S3 CORS
-            const proxyUrl = `https://api.hataoo.in/api/proxy-image?url=${encodeURIComponent(url)}`;
+            const proxyUrl = `http://localhost:3001/api/proxy-image?url=${encodeURIComponent(url)}`;
             const res = await fetch(proxyUrl);
             if (!res.ok) throw new Error("Proxy fetch failed");
             return await res.text();
@@ -229,7 +229,7 @@ const SampleQrcode = () => {
         for (let i = 0; i < currentItems.length; i++) {
             const item = currentItems[i];
             try {
-                await axios.put(`https://api.hataoo.in/api/qr-code/update2/${item.code}`, { isPrinted: !item.isPrinted });
+                await axios.put(`http://localhost:3001/api/qr-code/update2/${item.code}`, { isPrinted: !item.isPrinted });
                 successCount++;
                 setPrintProgress({ done: i + 1, total: currentItems.length });
             } catch { failCount++; }
@@ -244,7 +244,7 @@ const SampleQrcode = () => {
 
     const handleResetQr = async (item) => {
         try {
-            await axios.put(`https://api.hataoo.in/api/qr-code/update2/${item.code}`, {
+            await axios.put(`http://localhost:3001/api/qr-code/update2/${item.code}`, {
                 language: null, carNumberPlate: null, name: null, isBlocked: false,
                 contactNumber: null, contactVerified: false, isActive: false,isMaskedCall: true , isSmsSend : true, isEmergencyShow : true,
                 emergencyDetails: { emergencyContacts: [], bloodGroup: null, healthInsuranceCompany: null, notes: null }
@@ -257,7 +257,7 @@ const SampleQrcode = () => {
             if (dateRange?.fromDate) params.fromDate = dateRange.fromDate;
             if (dateRange?.toDate) params.toDate = dateRange.toDate;
 
-            const res = await axios.get('https://api.hataoo.in/api/qr-code', { params });
+            const res = await axios.get('http://localhost:3001/api/qr-code', { params });
             const freshData = res.data.data || [];
             setFilteredData(freshData);
             setMeta(res.data.meta);
@@ -303,7 +303,7 @@ const SampleQrcode = () => {
     const closeDeleteModal = () => setDeleteModal({ isOpen: false, id: null, isBulk: false, batchIndex: null });
 
     const handleDeleteSelected = () => {
-        axios.post('https://api.hataoo.in/api/admin/deleteMultiple', { ids: selectedItems, TypeId: "3" })
+        axios.post('http://localhost:3001/api/admin/deleteMultiple', { ids: selectedItems, TypeId: "3" })
             .then(() => {
                 toast.success(`Successfully deleted ${selectedItems.length} QR codes.`);
                 getData(currentItems.length - selectedItems.length <= 0 && currentPage > 1 ? currentPage - 1 : currentPage, searchTerm, statusFilter, dateRange);
@@ -363,7 +363,7 @@ const SampleQrcode = () => {
             const numBatches = formQuantity / 16;
             const autoBatchNames = Array.from({ length: numBatches }, (_, i) => `sample${lastNum + i + 1}`);
 
-            const res = await axios.post('https://api.hataoo.in/api/qr-code/generate', {
+            const res = await axios.post('http://localhost:3001/api/qr-code/generate', {
                 quantity: Number(formQuantity),
                 qrtype: "sample",
                 batchNames: autoBatchNames,
