@@ -7,7 +7,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-    faPlus,  faTrash, faTimes,
+    faPlus, faTrash, faTimes,
     faChevronDown, faFilter, faQrcode, faDownload, faPrint,
 } from "@fortawesome/free-solid-svg-icons";
 import CustomPagination from "../../components/common/pagination";
@@ -28,10 +28,13 @@ const formatDate = (dateStr) => {
     return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-const downloadQr = (url, index) => {
+const downloadQr = (url, index, isDuplicate = false) => {
     if (!url) { toast.error("No QR image available to download."); return; }
+    const baseName = `${index}`;
+    const fileName = isDuplicate ? `${baseName}_duplicate` : baseName;
     const link = document.createElement("a");
-    link.href = url; link.download = `${index}.svg`;
+    link.href = url;
+    link.download = `${fileName}.svg`;
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
 };
 
@@ -57,14 +60,17 @@ const Qrcode = () => {
     const [infoModal, setInfoModal] = useState({
         open: false,
         qr: null,
-        index: 0,          // index within the batch
-        batchQrs: [],       // all QRs in the same batch
-        batchName: null,    // batch label string
+        index: 0,
+        batchQrs: [],
+        batchName: null,
     });
+
     // Form state
     const [formQuantity, setFormQuantity] = useState(16);
     const [batchNames, setBatchNames] = useState(['']);
     const [formErrors, setFormErrors] = useState({});
+
+    const [qrMode, setQrMode] = useState('single');
 
     // Mark as printed state
     const [isPrinting, setIsPrinting] = useState(false);
@@ -89,7 +95,6 @@ const Qrcode = () => {
 
         const result = [];
 
-        // Named groups
         const nameMap = new Map();
         named.forEach(item => {
             const k = item.qrBatchName.trim();
@@ -100,7 +105,6 @@ const Qrcode = () => {
             result.push({ name, items: batchItems, isNamed: true });
         });
 
-        // Unnamed → fallback numbered groups of 16
         for (let i = 0; i < unnamed.length; i += 16) {
             result.push({ name: null, items: unnamed.slice(i, i + 16), isNamed: false });
         }
@@ -155,7 +159,7 @@ const Qrcode = () => {
         if (status !== '') params.isActive = status;
         if (dr?.fromDate) params.fromDate = dr.fromDate;
         if (dr?.toDate) params.toDate = dr.toDate;
-        axios.get('http://localhost:3001/api/qr-code', { params })
+        axios.get('https://api.hataoo.in/api/qr-code', { params })
             .then((res) => {
                 setFilteredData(res.data.data || []); setMeta(res.data.meta);
                 if (res.data.meta) setCurrentPage(res.data.meta.page || page);
@@ -174,9 +178,7 @@ const Qrcode = () => {
                 const base64 = url.split(",")[1];
                 return atob(base64);
             }
-
-            // Proxy through backend to bypass S3 CORS
-            const proxyUrl = `http://localhost:3001/api/proxy-image?url=${encodeURIComponent(url)}`;
+            const proxyUrl = `https://api.hataoo.in/api/proxy-image?url=${encodeURIComponent(url)}`;
             const res = await fetch(proxyUrl);
             if (!res.ok) throw new Error("Proxy fetch failed");
             return await res.text();
@@ -198,7 +200,20 @@ const Qrcode = () => {
                 const item = items[idx];
                 const svgContent = await fetchSvgContent(item.qrImage);
                 if (svgContent) {
-                    zip.file(`${idx + 1}.svg`, svgContent);
+                    let fileName;
+                    if (item.isDuplicate === true) {
+                        // Find the previous non-duplicate item to get the pair number
+                        const prevOriginal = items.slice(0, idx).reverse().find(i => !i.isDuplicate);
+                        const pairNumber = prevOriginal
+                            ? items.filter((i, i2) => i2 <= idx && !i.isDuplicate).length
+                            : 1;
+                        fileName = `${pairNumber}_duplicate`;
+                    } else {
+                        // Count how many originals have appeared so far (including this one)
+                        const originalNumber = items.slice(0, idx + 1).filter(i => !i.isDuplicate).length;
+                        fileName = `${originalNumber}`;
+                    }
+                    zip.file(`${fileName}.svg`, svgContent);
                 }
             }
 
@@ -229,7 +244,7 @@ const Qrcode = () => {
         for (let i = 0; i < currentItems.length; i++) {
             const item = currentItems[i];
             try {
-                await axios.put(`http://localhost:3001/api/qr-code/update2/${item.code}`, { isPrinted: !item.isPrinted });
+                await axios.put(`https://api.hataoo.in/api/qr-code/update2/${item.code}`, { isPrinted: !item.isPrinted });
                 successCount++;
                 setPrintProgress({ done: i + 1, total: currentItems.length });
             } catch { failCount++; }
@@ -266,7 +281,7 @@ const Qrcode = () => {
     const closeDeleteModal = () => setDeleteModal({ isOpen: false, id: null, isBulk: false, batchIndex: null });
 
     const handleDeleteSelected = () => {
-        axios.post('http://localhost:3001/api/admin/deleteMultiple', { ids: selectedItems, TypeId: "3" })
+        axios.post('https://api.hataoo.in/api/admin/deleteMultiple', { ids: selectedItems, TypeId: "3" })
             .then(() => {
                 toast.success(`Successfully deleted ${selectedItems.length} QR codes.`);
                 getData(currentItems.length - selectedItems.length <= 0 && currentPage > 1 ? currentPage - 1 : currentPage, searchTerm, statusFilter, dateRange);
@@ -275,13 +290,6 @@ const Qrcode = () => {
             .finally(() => { closeDeleteModal(); });
     };
 
-    // const clearAllFilters = () => {
-    //     const dr = defaultDateRange();
-    //     setSearchTerm(''); setStatusFilter(''); setSelectedItems([]); setCurrentPage(1);
-    //     setDateKey(DEFAULT_DATE_KEY); setDateRange(dr);
-    //     getData(1, '', '', dr); toast.info("All filters cleared");
-    // };
-
     // ── Form helpers ──────────────────────────────────────────────────────────
     const numBatches = formQuantity / 16;
 
@@ -289,6 +297,7 @@ const Qrcode = () => {
         setFormQuantity(16);
         setBatchNames(['']);
         setFormErrors({});
+        setQrMode('single');
     };
 
     const handleQuantitySelect = (qty) => {
@@ -323,6 +332,9 @@ const Qrcode = () => {
         return errs;
     };
 
+    const uniqueCount = qrMode === 'duplicate' ? formQuantity / 2 : formQuantity;
+    const dupCount = qrMode === 'duplicate' ? formQuantity / 2 : 0;
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         const errs = validateForm();
@@ -330,15 +342,27 @@ const Qrcode = () => {
         if (isSubmitting) return;
         try {
             setIsSubmitting(true);
-            const res = await axios.post('http://localhost:3001/api/qr-code/generate', {
+            const res = await axios.post('https://api.hataoo.in/api/qr-code/generate', {
                 quantity: Number(formQuantity),
                 qrtype: "live",
                 batchNames: batchNames.map(n => n.trim()),
+                qrMode,
             });
             toast.success(res.data.message || `${formQuantity} QR codes generated successfully`);
             resetForm(); setVisible(false); getData(1, searchTerm, statusFilter, dateRange);
         } catch (err) { toast.error(err.response?.data?.message || "An error occurred."); }
         finally { setIsSubmitting(false); }
+    };
+
+    // ── Reset QR handler (passed to QrInfoModal) ──────────────────────────────
+    const handleResetQr = async (qrItem) => {
+        try {
+            await axios.put(`https://api.hataoo.in/api/qr-code/reset/${qrItem.code}`);
+            toast.success("QR code has been reset successfully.");
+            getData(currentPage, searchTerm, statusFilter, dateRange);
+        } catch {
+            toast.error("Failed to reset QR code.");
+        }
     };
 
     useModalBackButton(visible, () => !isSubmitting && toggleModal());
@@ -347,7 +371,6 @@ const Qrcode = () => {
         setInfoModal({ open: false, qr: null, index: 0, batchQrs: [], batchName: null })
     );
 
-    // const hasActiveFilters = searchTerm || statusFilter !== '' || selectedItems.length > 0;
     const STATUS_OPTIONS = [{ label: 'All Status', value: '' }, { label: 'Active', value: 'true' }, { label: 'Inactive', value: 'false' }];
 
     if (loading) return <Loading />;
@@ -383,33 +406,20 @@ const Qrcode = () => {
                                     return (
                                         <div key={batchIdx} className="bg-gray-50 dark:bg-gray-900 border-gray-200 rounded-xl p-4 hover:shadow-md transition">
                                             <div className="flex flex-wrap items-center justify-between gap-3">
-
                                                 <div className="flex items-center gap-3 flex-wrap">
-
                                                     <div className="flex items-center justify-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg">
-                                                        <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
-                                                            Batch
-                                                        </span>
-
-                                                        <span className="text-sm font-semibold text-gray-800">
-                                                            {batchLabel}
-                                                        </span>
+                                                        <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Batch</span>
+                                                        <span className="text-sm font-semibold text-gray-800">{batchLabel}</span>
                                                     </div>
-
-                                                    <span className="text-sm font-medium bg-gray-100 px-2.5 py-1 rounded-md text-gray-700">
-                                                        {batch.length} QRs
-                                                    </span>
-
+                                                    <span className="text-sm font-medium bg-gray-100 px-2.5 py-1 rounded-md text-gray-700">{batch.length} QRs</span>
                                                     {batchBadge}
                                                 </div>
-
                                                 {batchDate && (
                                                     <div className="flex items-center gap-1 text-md text-gray-600 bg-gray-200 px-3 py-1 rounded-md">
                                                         <span>📅</span>
                                                         <span className="font-medium">{batchDate}</span>
                                                     </div>
                                                 )}
-
                                             </div>
                                         </div>
                                     );
@@ -417,41 +427,22 @@ const Qrcode = () => {
                             </div>
                         ) : (
                             <div className="space-y-4">
-
-                                {/* Placeholder Batch Card */}
                                 <div className="bg-gray-50 dark:bg-gray-900 border-gray-200 rounded-xl p-4 opacity-60">
                                     <div className="flex flex-wrap items-center justify-between gap-3">
-
                                         <div className="flex items-center gap-3 flex-wrap">
-
                                             <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg">
-                                                <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
-                                                    Batch
-                                                </span>
-
-                                                <span className="text-sm font-semibold text-gray-800">
-                                                    No Batch Yet
-                                                </span>
+                                                <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Batch</span>
+                                                <span className="text-sm font-semibold text-gray-800">No Batch Yet</span>
                                             </div>
-
-                                            <span className="text-sm font-medium bg-gray-100 px-2.5 py-1 rounded-md text-gray-700">
-                                                0 QRs
-                                            </span>
-
-                                            <span className="text-xs font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-600">
-                                                Not Printed
-                                            </span>
-
+                                            <span className="text-sm font-medium bg-gray-100 px-2.5 py-1 rounded-md text-gray-700">0 QRs</span>
+                                            <span className="text-xs font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-600">Not Printed</span>
                                         </div>
-
                                         <div className="flex items-center gap-1 text-md text-gray-500 bg-gray-200 px-3 py-1 rounded-md">
                                             <span>📅</span>
                                             <span className="font-medium">--</span>
                                         </div>
-
                                     </div>
                                 </div>
-
                             </div>
                         )}
                     </div>
@@ -477,14 +468,10 @@ const Qrcode = () => {
                                                         <FontAwesomeIcon icon={faTimes} />
                                                     </button>
                                                 )}
-                                                {/* <button type="submit" className="inline-flex items-center px-[7px] py-[4.5px] text-xs text-gray-500 hover:text-blue-600 dark:text-gray-400">
-                                                    <FontAwesomeIcon icon={faSearch} />
-                                                </button> */}
                                             </div>
                                         </div>
                                     </form>
                                 </div>
-
 
                                 {searchTerm && (
                                     <button type="submit" onClick={handleSearchSubmit}
@@ -526,7 +513,7 @@ const Qrcode = () => {
                         </div>
                     </div>
 
-                    {/* QR Grid — grouped by qrBatchName */}
+                    {/* QR Grid */}
                     <div className="p-6">
                         {displayBatches.length > 0 ? (
                             <div className="space-y-6">
@@ -560,19 +547,13 @@ const Qrcode = () => {
 
                                     return (
                                         <div key={batchIdx} className={`relative rounded-xl p-3 ${batchBgClass}`}>
-
-                                            {/* ── Batch header — hidden for first batch (shown in top sticky card) ── */}
                                             {batchIdx !== 0 && (
                                                 <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 mb-4 hover:shadow-md transition">
                                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                                         <div className="flex items-center gap-3 flex-wrap">
                                                             <div className="flex items-center justify-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg">
-                                                                <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
-                                                                    Batch
-                                                                </span>
-                                                                <span className="text-sm font-semibold text-gray-800 dark:text-white">
-                                                                    {batchLabel}
-                                                                </span>
+                                                                <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Batch</span>
+                                                                <span className="text-sm font-semibold text-gray-800 dark:text-white">{batchLabel}</span>
                                                             </div>
                                                             <span className="text-sm font-medium bg-gray-100 dark:bg-gray-700 px-2.5 py-1 rounded-md text-gray-700 dark:text-gray-300">
                                                                 {batch.length} QRs
@@ -589,7 +570,6 @@ const Qrcode = () => {
                                                 </div>
                                             )}
 
-                                            {/* ── Batch action buttons ── */}
                                             <div className="flex items-center justify-end mb-3 px-1">
                                                 <div className="flex items-center gap-3">
                                                     <div className="flex gap-4 items-center flex-wrap">
@@ -615,10 +595,7 @@ const Qrcode = () => {
                                                     </div>
 
                                                     {batchIsFull && !searchTerm && statusFilter === '' && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => downloadBatchAsZip(batchObj)}
-                                                            disabled={isZipping}
+                                                        <button type="button" onClick={() => downloadBatchAsZip(batchObj)} disabled={isZipping}
                                                             title={`Download all ${batch.length} QRs as "${batchObj.isNamed ? batchObj.name : 'Batch'}.zip"`}
                                                             className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1 rounded-lg border transition-colors ${isZipping ? 'border-gray-200 text-gray-300 cursor-not-allowed dark:border-gray-700 dark:text-gray-600' : 'border-green-200 text-green-600 hover:bg-green-50 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/20'}`}>
                                                             {isZipping
@@ -640,14 +617,32 @@ const Qrcode = () => {
                                                 </div>
                                             </div>
 
-                                            {/* ── QR Card grid ── */}
                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4">
                                                 {batch.map((item, itemIdx) => {
-                                                    const batchIndex = itemIdx + 1;
+                                                    const isDuplicate = item.isDuplicate === true;
+
+                                                    // Count originals up to and including this index
+                                                    const originalsSoFar = batch
+                                                        .slice(0, itemIdx + 1)
+                                                        .filter(i => !i.isDuplicate).length;
+
+                                                    // For duplicates, find the previous original's number
+                                                    const prevOriginalNumber = batch
+                                                        .slice(0, itemIdx)
+                                                        .filter(i => !i.isDuplicate).length;
+
+                                                    const displayIndex = isDuplicate
+                                                        ? `${prevOriginalNumber}-duplicate`
+                                                        : originalsSoFar;
+
                                                     return (
-                                                        <QrCard key={item._id} item={item} index={batchIndex}
+                                                        <QrCard
+                                                            key={item._id}
+                                                            item={item}
+                                                            index={displayIndex}          // ← pass the new label
                                                             onDelete={(id) => openDeleteModal(id)}
                                                             onInfo={(qr) => {
+                                                                if (isDuplicate) return;
                                                                 const idxInBatch = batch.indexOf(qr);
                                                                 setInfoModal({
                                                                     open: true,
@@ -658,7 +653,9 @@ const Qrcode = () => {
                                                                 });
                                                             }}
                                                             isSelected={selectedItems.includes(item._id)}
-                                                            onDownload={(url, gi) => downloadQr(url, gi)} />
+                                                            onDownload={(url, gi) => downloadQr(url, gi)}
+                                                            onReset={handleResetQr}
+                                                        />
                                                     );
                                                 })}
                                             </div>
@@ -704,6 +701,67 @@ const Qrcode = () => {
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+
+                            {/* ── QR Mode Toggle ─────────────────────────────── */}
+                            <div>
+                                <label className="block text-sm font-semibold mb-2 dark:text-gray-300">
+                                    Generation Mode <span className="text-red-500">*</span>
+                                </label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        disabled={isSubmitting}
+                                        onClick={() => setQrMode('single')}
+                                        className={`relative flex flex-col items-start gap-1 px-4 py-3 rounded-xl border-2 text-left transition-all duration-150
+                                            ${qrMode === 'single'
+                                                ? 'border-[#7C7FFF] bg-[#7C7FFF]/5 shadow-sm'
+                                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'}`}
+                                    >
+                                        <span className={`absolute top-3 right-3 w-3 h-3 rounded-full border-2 transition-all
+                                            ${qrMode === 'single'
+                                                ? 'bg-[#7C7FFF] border-[#7C7FFF]'
+                                                : 'bg-white border-gray-300 dark:bg-gray-800 dark:border-gray-600'}`}
+                                        />
+                                        <span className={`text-sm font-bold ${qrMode === 'single' ? 'text-[#7C7FFF]' : 'text-gray-700 dark:text-gray-300'}`}>
+                                            Single
+                                        </span>
+                                        <span className="text-xs text-gray-400 leading-snug pr-4">
+                                            All {formQuantity} QRs are unique
+                                        </span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        disabled={isSubmitting}
+                                        onClick={() => setQrMode('duplicate')}
+                                        className={`relative flex flex-col items-start gap-1 px-4 py-3 rounded-xl border-2 text-left transition-all duration-150
+                                            ${qrMode === 'duplicate'
+                                                ? 'border-[#7C7FFF] bg-[#7C7FFF]/5 shadow-sm'
+                                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'}`}
+                                    >
+                                        <span className={`absolute top-3 right-3 w-3 h-3 rounded-full border-2 transition-all
+                                            ${qrMode === 'duplicate'
+                                                ? 'bg-[#7C7FFF] border-[#7C7FFF]'
+                                                : 'bg-white border-gray-300 dark:bg-gray-800 dark:border-gray-600'}`}
+                                        />
+                                        <span className={`text-sm font-bold ${qrMode === 'duplicate' ? 'text-[#7C7FFF]' : 'text-gray-700 dark:text-gray-300'}`}>
+                                            Duplicate
+                                        </span>
+                                        <span className="text-xs text-gray-400 leading-snug pr-4">
+                                            {formQuantity / 2} unique + {formQuantity / 2} copies
+                                        </span>
+                                    </button>
+                                </div>
+
+                                {qrMode === 'duplicate' && (
+                                    <div className="mt-2.5 flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2.5">
+                                        <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+                                            Each pair shares the same image URL and QR link.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Quantity selector */}
                             <div>
                                 <label className="block text-sm font-semibold mb-2 dark:text-gray-300">
@@ -717,12 +775,26 @@ const Qrcode = () => {
                                             <button key={multiplier} type="button" disabled={isSubmitting}
                                                 onClick={() => handleQuantitySelect(qty)}
                                                 className={`py-2 px-3 rounded-xl border-2 text-sm font-bold transition-all duration-150 flex flex-col items-center ${formQuantity === qty ? 'border-gray-400 bg-[#7C7FFF0D] text-black shadow-sm scale-105' : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300'}`}>
-                                                <span className="text-xs font-normal opacity-70">16×{multiplier}</span>
+                                                <span className="text-xs font-normal opacity-70">
+                                                    {qrMode === 'duplicate' ? `${qty / 2}+${qty / 2}` : `16×${multiplier}`}
+                                                </span>
                                                 <span>{qty}</span>
                                             </button>
                                         );
                                     })}
                                 </div>
+
+                                {qrMode === 'duplicate' && (
+                                    <div className="mt-2 flex gap-2 flex-wrap">
+                                        <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-[#7C7FFF]/10 text-[#7C7FFF] font-medium">
+                                            ✦ {uniqueCount} unique QRs
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-medium">
+                                            ⧉ {dupCount} copies
+                                        </span>
+                                    </div>
+                                )}
+
                                 {formErrors.quantity && <p className="text-red-500 text-xs mt-1">{formErrors.quantity}</p>}
                             </div>
 
@@ -805,8 +877,10 @@ const Qrcode = () => {
                             index: newIdx,
                         }))
                     }
+                    onReset={handleResetQr}
                 />
-            )}            <ToastContainer position="top-center" className="!z-[99999]" />
+            )}
+            <ToastContainer position="top-center" className="!z-[99999]" />
         </div>
     );
 };

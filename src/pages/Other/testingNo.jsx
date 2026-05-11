@@ -65,7 +65,7 @@ const TestingNo = () => {
         const params = { page, limit: itemsPerPage };
         if (search && search.trim() !== '') params.search = search.trim();
 
-        axios.get('http://localhost:3001/api/testing-number/read', { params })
+        axios.get('https://api.hataoo.in/api/testing-number/read', { params })
             .then((res) => {
                 const responseData = res.data.data || [];
                 const responsePagination = res.data.meta;
@@ -91,7 +91,7 @@ const TestingNo = () => {
     const closeDeleteModal = () => setDeleteModal({ isOpen: false, id: null, isBulk: false });
 
     const handleDelete = () => {
-        axios.delete(`http://localhost:3001/api/testing-number/delete/${deleteModal.id}`)
+        axios.delete(`https://api.hataoo.in/api/testing-number/delete/${deleteModal.id}`)
             .then((res) => {
                 const newPage = currentItems.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
                 getData(newPage, searchTerm);
@@ -147,10 +147,10 @@ const TestingNo = () => {
             formData.append('number', formNumber.trim());
             formData.append('otp', formOtp.trim());
             if (id) {
-                const res = await axios.patch(`http://localhost:3001/api/testing-number/update/${id}`, formData);
+                const res = await axios.patch(`https://api.hataoo.in/api/testing-number/update/${id}`, formData);
                 toast.success(res.data.message || 'Successfully updated');
             } else {
-                await axios.post('http://localhost:3001/api/testing-number/create', formData);
+                await axios.post('https://api.hataoo.in/api/testing-number/create', formData);
                 toast.success('Successfully created');
             }
             resetForm(); setVisible(false); getData(currentPage, searchTerm);

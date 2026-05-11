@@ -62,7 +62,7 @@ const DetailModal = ({ item, onClose, onDelete, onToggleBlock, blockingId, onReq
     const handleDeleteRequest = async (reqId) => {
         setDeletingReqId(reqId);
         try {
-            await axios.delete(`http://localhost:3001/api/contact/report/request/delete/${reqId}`);
+            await axios.delete(`https://api.hataoo.in/api/contact/report/request/delete/${reqId}`);
             const updated = requests.filter(r => r._id !== reqId);
             setRequests(updated);
             toast.success("Message deleted.");
@@ -497,7 +497,7 @@ const Report = () => {
         const params = { page, limit: itemsPerPage };
         if (search && search.trim() !== '') params.search = search.trim();
 
-        axios.get('http://localhost:3001/api/contact/report/read', { params })
+        axios.get('https://api.hataoo.in/api/contact/report/read', { params })
             .then((res) => {
                 setFilteredData(res.data.data || []);
                 setMeta(res.data.meta);
@@ -541,7 +541,7 @@ const Report = () => {
     const closeDeleteModal = () => setDeleteModal({ isOpen: false, id: null, isBulk: false });
 
     const handleDelete = () => {
-        axios.delete(`http://localhost:3001/api/contact/report/delete/${deleteModal.id}`)
+        axios.delete(`https://api.hataoo.in/api/contact/report/delete/${deleteModal.id}`)
             .then((res) => {
                 const newPage = currentItems.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
                 getData(newPage, searchTerm);
@@ -553,7 +553,7 @@ const Report = () => {
 
     const handleDeleteSelected = () => {
         setIsDeleting(true);
-        axios.post('http://localhost:3001/api/admin/deleteMultiple', { ids: selectedItems, TypeId: "4" })
+        axios.post('https://api.hataoo.in/api/admin/deleteMultiple', { ids: selectedItems, TypeId: "4" })
             .then(() => {
                 toast.success(`Successfully deleted ${selectedItems.length} items.`);
                 const remaining = currentItems.length - selectedItems.length;
@@ -568,7 +568,7 @@ const Report = () => {
         const isCurrentlyBlocked = item.isBlocked;
         setBlockingId(item._id);
         try {
-            await axios.put(`http://localhost:3001/api/qr-code/update2/${item.code}`, {
+            await axios.put(`https://api.hataoo.in/api/qr-code/update2/${item.code}`, {
                 isMaskedCall:     isCurrentlyBlocked,
                 isSmsSend:        isCurrentlyBlocked,
                 isEmergencyShow:  isCurrentlyBlocked,

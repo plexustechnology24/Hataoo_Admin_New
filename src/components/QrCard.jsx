@@ -110,6 +110,9 @@ const QrCard = ({
 
     const isNew = isNewItem(item.createdAt);
 
+    // ── Duplicate QRs: hide info button & make image non-clickable ──
+    const isDuplicate = item.isDuplicate === true;
+
     return (
         <>
             <div className={`relative bg-white dark:bg-gray-600 rounded-xl border-2 transition-all duration-200 overflow-hidden group
@@ -117,7 +120,7 @@ const QrCard = ({
                     ? 'border-gray-400'
                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 hover:shadow-md dark:hover:border-gray-700'}`}>
 
-                {/* ── Top badges row: number (left) + New (right) ── */}
+                {/* ── Top badges row: number (left) + New / Duplicate (right) ── */}
                 <div className="absolute top-2 left-2 z-10">
                     <span className="inline-flex items-center justify-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-[11px] font-bold px-2 rounded-full h-5 leading-none shadow-sm">
                         #{index}
@@ -130,6 +133,12 @@ const QrCard = ({
                             New
                         </span>
                     )}
+                    {/* Duplicate badge */}
+                    {isDuplicate && (
+                        <span className="flex items-center justify-center bg-purple-50 text-purple-600 text-[10px] border border-purple-300 px-2 rounded-full h-5 leading-none tracking-wide shadow-sm">
+                            Copy
+                        </span>
+                    )}
                 </div>
 
                 {/* QR Image */}
@@ -138,14 +147,14 @@ const QrCard = ({
                         <img
                             src={item.qrImage}
                             alt="QR Code"
-                            onClick={() => onInfo(item)}   // ✅ ADD THIS
-                            className="w-28 h-28 object-contain cursor-pointer transition-transform duration-200 group-hover:scale-105"
+                            onClick={!isDuplicate ? () => onInfo(item) : undefined}
+                            className={`w-28 h-28 object-contain transition-transform duration-200 group-hover:scale-105 ${!isDuplicate ? 'cursor-pointer' : 'cursor-default'}`}
                             style={{ imageRendering: 'pixelated' }}
                         />
                     ) : (
                         <div
-                            onClick={() => onInfo(item)}   // ✅ also clickable if no image
-                            className="w-28 h-28 flex items-center justify-center cursor-pointer"
+                            onClick={!isDuplicate ? () => onInfo(item) : undefined}
+                            className={`w-28 h-28 flex items-center justify-center ${!isDuplicate ? 'cursor-pointer' : 'cursor-default'}`}
                         >
                             <FontAwesomeIcon icon={faQrcode} className="text-5xl text-gray-300 dark:text-gray-600" />
                         </div>
@@ -194,12 +203,17 @@ const QrCard = ({
                     {/* Actions */}
                     <div className="flex items-center justify-between py-2 border-t border-gray-100 dark:border-gray-700 px-2">
 
-                        {/* Info */}
-                        <button onClick={() => onInfo(item)}
-                            className="flex items-center gap-1.5 text-sm text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors px-2 py-1 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                            title="View Details">
-                            <FontAwesomeIcon icon={faInfoCircle} />
-                        </button>
+                        {/* Info — hidden for duplicate QRs */}
+                        {!isDuplicate && (
+                            <button onClick={() => onInfo(item)}
+                                className="flex items-center gap-1.5 text-sm text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors px-2 py-1 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                title="View Details">
+                                <FontAwesomeIcon icon={faInfoCircle} />
+                            </button>
+                        )}
+
+                        {/* Spacer when info is hidden so layout stays balanced */}
+                        {isDuplicate && <div className="w-8" />}
 
                         {/* Download */}
                         <button onClick={() => onDownload(item.qrImage, index)}
@@ -228,8 +242,8 @@ const QrCard = ({
                             </button>
                         )}
 
-                        {/* Reset — only for active QRs */}
-                        {item.isActive && item.qrtype === "sample" && (
+                        {/* Reset — only for active, non-duplicate QRs */}
+                        {item.isActive && item.qrtype === "sample" && !isDuplicate && (
                             <button
                                 onClick={() => setShowResetPopup(true)}
                                 title="Reset QR"

@@ -162,7 +162,7 @@ const Product = () => {
         const params = { page, limit: itemsPerPage };
         if (search && search.trim() !== '') params.search = search.trim();
         if (status !== '') params.status = status;
-        axios.get('http://localhost:3001/api/product/read', { params })
+        axios.get('https://api.hataoo.in/api/product/read', { params })
             .then((res) => {
                 const responseData = res.data.data || [];
                 const responsePagination = res.data.meta;
@@ -206,7 +206,7 @@ const Product = () => {
     };
     const closeDeleteModal = () => setDeleteModal({ isOpen: false, id: null, isBulk: false });
     const handleDelete = () => {
-        axios.delete(`http://localhost:3001/api/product/delete/${deleteModal.id}`)
+        axios.delete(`https://api.hataoo.in/api/product/delete/${deleteModal.id}`)
             .then((res) => {
                 const newPage = currentItems.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
                 getData(newPage, searchTerm, statusFilter); closeDeleteModal(); toast.success(res.data.message);
@@ -215,7 +215,7 @@ const Product = () => {
     };
     const handleDeleteSelected = () => {
         setIsDeleting(true);
-        axios.post('http://localhost:3001/api/admin/deleteMultiple', { ids: selectedItems, TypeId: "2" })
+        axios.post('https://api.hataoo.in/api/admin/deleteMultiple', { ids: selectedItems, TypeId: "2" })
             .then(() => {
                 toast.success(`Successfully deleted ${selectedItems.length} items.`);
                 const remaining = currentItems.length - selectedItems.length;
@@ -353,10 +353,10 @@ const Product = () => {
             if (id && existingImages.length > 0) formData.append('existingImages', JSON.stringify(existingImages));
             selectedFiles.forEach(file => formData.append('files', file));
             if (id) {
-                const res = await axios.patch(`http://localhost:3001/api/product/update/${id}`, formData);
+                const res = await axios.patch(`https://api.hataoo.in/api/product/update/${id}`, formData);
                 toast.success(res.data.message || 'Successfully updated');
             } else {
-                await axios.post('http://localhost:3001/api/product/create', formData);
+                await axios.post('https://api.hataoo.in/api/product/create', formData);
                 toast.success('Successfully created');
             }
             resetForm(); setVisible(false); getData(currentPage, searchTerm, statusFilter);

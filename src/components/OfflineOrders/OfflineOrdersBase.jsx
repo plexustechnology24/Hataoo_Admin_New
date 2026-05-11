@@ -81,7 +81,7 @@ const OfflineOrdersBase = ({
 
     const getStats = useCallback(() => {
         axios
-            .get('http://localhost:3001/api/offline-order/stats')
+            .get('https://api.hataoo.in/api/offline-order/stats')
             .then((res) => setStats(res.data.data))
             .catch((err) => console.error('Stats fetch failed', err));
     }, []);
@@ -96,7 +96,7 @@ const OfflineOrdersBase = ({
             if (search.trim()) params.search = search.trim();
 
             axios
-                .get("http://localhost:3001/api/offline-order/read", { params })
+                .get("https://api.hataoo.in/api/offline-order/read", { params })
                 .then((res) => {
                     setFilteredData(res.data.data || []);
                     setMeta(res.data.meta);
@@ -183,7 +183,7 @@ const OfflineOrdersBase = ({
 
     const handleDelete = () => {
         axios
-            .delete(`http://localhost:3001/api/offline-order/delete/${deleteModal.id}`)
+            .delete(`https://api.hataoo.in/api/offline-order/delete/${deleteModal.id}`)
             .then((res) => {
                 const newPage =
                     currentItems.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
@@ -197,7 +197,7 @@ const OfflineOrdersBase = ({
     const handleDeleteSelected = () => {
         setIsDeleting(true);
         axios
-            .post("http://localhost:3001/api/admin/deleteMultiple", {
+            .post("https://api.hataoo.in/api/admin/deleteMultiple", {
                 ids: selectedItems,
                 TypeId: "5",
             })
@@ -273,12 +273,12 @@ const OfflineOrdersBase = ({
             };
             if (id) {
                 const res = await axios.patch(
-                    `http://localhost:3001/api/offline-order/update/${id}`,
+                    `https://api.hataoo.in/api/offline-order/update/${id}`,
                     payload
                 );
                 toast.success(res.data.message || "Successfully updated");
             } else {
-                await axios.post("http://localhost:3001/api/offline-order/create", payload);
+                await axios.post("https://api.hataoo.in/api/offline-order/create", payload);
                 toast.success("Successfully created");
             }
             resetForm();

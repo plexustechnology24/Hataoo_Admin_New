@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 
-const BASE          = "http://localhost:3001/api/contact/message/read";
+const BASE          = "https://api.hataoo.in/api/contact/message/read";
 const POLL_INTERVAL = 60_000; // 30 seconds
 const STORAGE_KEY   = "contact_last_total";
 

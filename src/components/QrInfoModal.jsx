@@ -87,12 +87,55 @@ const DetailRow = ({ label, value, full = false, children }) => (
     </div>
 );
 
+// ── Helper: build a list of "primary" indices (non-duplicate) from allQrs ──
+// In duplicate mode the array is interleaved: [original, copy, original, copy …]
+// "copy" items have isDuplicate === true.
+// Navigation should only step through originals; the copy is shown alongside.
+const buildPrimaryIndices = (allQrs) => {
+    const indices = [];
+    allQrs.forEach((qr, i) => {
+        if (!qr.isDuplicate) indices.push(i);
+    });
+    return indices;
+};
+
+// Given a raw index in allQrs, find the index in primaryIndices array (step position)
+const getPrimaryStep = (primaryIndices, rawIndex) => {
+    // If the item itself is a duplicate, find the preceding primary
+    const pos = primaryIndices.indexOf(rawIndex);
+    if (pos !== -1) return pos;
+    // rawIndex is a duplicate — find the closest primary before it
+    for (let i = primaryIndices.length - 1; i >= 0; i--) {
+        if (primaryIndices[i] < rawIndex) return i;
+    }
+    return 0;
+};
+
 const QrInfoModal = ({ qr, onClose, allQrs = [], currentIndex = 0, onNavigate, batchName = null, onReset }) => {
     const total = allQrs.length;
-    const hasPrev = currentIndex > 0;
-    const hasNext = currentIndex < total - 1;
-    const displayNum = currentIndex + 1;
     const [showResetPopup, setShowResetPopup] = useState(false);
+
+    // ── Duplicate-aware navigation setup ────────────────────────────────────
+    const primaryIndices = buildPrimaryIndices(allQrs);
+    const totalPrimary = primaryIndices.length;
+
+    // currentIndex is always a primary (non-duplicate) index passed from parent
+    const currentStep = getPrimaryStep(primaryIndices, currentIndex);
+    const hasPrev = currentStep > 0;
+    const hasNext = currentStep < totalPrimary - 1;
+
+    // The "pair" for the current primary: next item if it's a duplicate
+    const pairIndex = currentIndex + 1 < total && allQrs[currentIndex + 1]?.isDuplicate
+        ? currentIndex + 1
+        : null;
+    const pairQr = pairIndex !== null ? allQrs[pairIndex] : null;
+
+    // Display numbers: e.g. "3-4" if pair exists, else "5"
+    const primaryDisplayNum = currentIndex + 1;
+    const pairDisplayNum = pairIndex !== null ? pairIndex + 1 : null;
+    const displayLabel = pairDisplayNum !== null
+        ? `${primaryDisplayNum}-${pairDisplayNum}`
+        : `${primaryDisplayNum}`;
 
     // Local QR state — allows updating display after reset without closing modal
     const [localQr, setLocalQr] = useState(qr);
@@ -105,14 +148,18 @@ const QrInfoModal = ({ qr, onClose, allQrs = [], currentIndex = 0, onNavigate, b
     useEffect(() => {
         if (!localQr) return;
         const handleKey = (e) => {
-            if (showResetPopup) return; // block navigation while confirm popup is open
-            if (e.key === 'ArrowLeft' && hasPrev) onNavigate(currentIndex - 1);
-            else if (e.key === 'ArrowRight' && hasNext) onNavigate(currentIndex + 1);
-            else if (e.key === 'Escape') onClose();
+            if (showResetPopup) return;
+            if (e.key === 'ArrowLeft' && hasPrev) {
+                const prevRawIdx = primaryIndices[currentStep - 1];
+                onNavigate(prevRawIdx);
+            } else if (e.key === 'ArrowRight' && hasNext) {
+                const nextRawIdx = primaryIndices[currentStep + 1];
+                onNavigate(nextRawIdx);
+            } else if (e.key === 'Escape') onClose();
         };
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
-    }, [localQr, currentIndex, hasPrev, hasNext, onNavigate, onClose, showResetPopup]);
+    }, [localQr, currentStep, hasPrev, hasNext, primaryIndices, onNavigate, onClose, showResetPopup]);
 
     if (!localQr) return null;
 
@@ -123,7 +170,6 @@ const QrInfoModal = ({ qr, onClose, allQrs = [], currentIndex = 0, onNavigate, b
     const handleResetConfirm = async () => {
         setShowResetPopup(false);
         await onReset(localQr);
-        // Immediately reflect reset in the modal — no close, no flicker
         setLocalQr(prev => ({
             ...prev,
             isActive: false,
@@ -141,9 +187,16 @@ const QrInfoModal = ({ qr, onClose, allQrs = [], currentIndex = 0, onNavigate, b
         }));
     };
 
+    const handlePrev = () => {
+        if (hasPrev) onNavigate(primaryIndices[currentStep - 1]);
+    };
+    const handleNext = () => {
+        if (hasNext) onNavigate(primaryIndices[currentStep + 1]);
+    };
+
     return (
         <>
-            {/* Layer 1: Dark backdrop — click to close */}
+            {/* Layer 1: Dark backdrop */}
             <div
                 className="fixed inset-0 z-[99998]"
                 style={{ backgroundColor: 'rgba(0,0,0,0.72)' }}
@@ -154,9 +207,9 @@ const QrInfoModal = ({ qr, onClose, allQrs = [], currentIndex = 0, onNavigate, b
             <div className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none">
 
                 {/* Prev Button */}
-                {total > 1 && (
+                {totalPrimary > 1 && (
                     <button
-                        onClick={() => hasPrev && onNavigate(currentIndex - 1)}
+                        onClick={handlePrev}
                         disabled={!hasPrev}
                         title="Previous QR"
                         style={{ pointerEvents: 'auto' }}
@@ -183,9 +236,10 @@ const QrInfoModal = ({ qr, onClose, allQrs = [], currentIndex = 0, onNavigate, b
                                     {batchName}
                                 </span>
                             )}
+                            {/* Counter: shows "1-2 / 16" for pairs, or "3 / 16" for non-pairs */}
                             {total > 1 && (
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-md bg-[#7d7fff] text-white dark:bg-gray-200 dark:text-gray-900">
-                                    {displayNum} / {total}
+                                    {displayLabel} / {total}
                                 </span>
                             )}
                         </div>
@@ -196,17 +250,59 @@ const QrInfoModal = ({ qr, onClose, allQrs = [], currentIndex = 0, onNavigate, b
 
                     {/* Scrollable Body */}
                     <div className="overflow-y-auto flex-1">
+
+                        {/* ── QR Image(s) section ─────────────────────────────────── */}
                         <div className="flex flex-col items-center pt-6 pb-4 px-6 gap-3">
-                            {localQr.qrImage ? (
-                                <div className="w-40 h-40 border-4 border-gray-300 dark:border-gray-600 rounded-xl overflow-hidden shadow-lg bg-white flex items-center justify-center">
-                                    <img src={localQr.qrImage} alt="QR Code" className="w-full h-full object-contain p-2" />
+
+                            {pairQr ? (
+                                /* ── Paired mode: show both QRs side by side ── */
+                                <div className="flex items-start justify-center gap-6 w-full">
+                                    {/* Original */}
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="w-36 h-36 border-4 border-[#7d7fff]/40 rounded-xl overflow-hidden shadow-lg bg-white flex items-center justify-center">
+                                            {localQr.qrImage
+                                                ? <img src={localQr.qrImage} alt="QR Code" className="w-full h-full object-contain p-2" />
+                                                : <FontAwesomeIcon icon={faQrcode} className="text-5xl text-gray-300" />
+                                            }
+                                        </div>
+                                        <span className="text-[11px] font-semibold text-[#7d7fff] bg-[#7d7fff]/10 px-2.5 py-0.5 rounded-full">
+                                            #{primaryDisplayNum} Original
+                                        </span>
+                                    </div>
+
+                                    {/* Divider */}
+                                    <div className="flex flex-col items-center justify-center h-36 gap-1">
+                                        <div className="w-px h-full bg-gray-200 dark:bg-gray-700" />
+                                    </div>
+
+                                    {/* Copy */}
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="w-36 h-36 border-4 border-purple-200 rounded-xl overflow-hidden shadow-lg bg-white flex items-center justify-center relative">
+                                            {pairQr.qrImage
+                                                ? <img src={pairQr.qrImage} alt="QR Code Copy" className="w-full h-full object-contain p-2 opacity-80" />
+                                                : <FontAwesomeIcon icon={faQrcode} className="text-5xl text-gray-300" />
+                                            }
+                                        </div>
+                                        <span className="text-[11px] font-semibold text-purple-500 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200">
+                                            #{pairDisplayNum} Copy
+                                        </span>
+                                    </div>
                                 </div>
                             ) : (
-                                <div className="w-40 h-40 border-4 border-dashed border-gray-300 dark:border-gray-600 rounded-xl flex items-center justify-center">
-                                    <FontAwesomeIcon icon={faQrcode} className="text-6xl text-gray-300 dark:text-gray-600" />
-                                </div>
+                                /* ── Single mode: original layout ── */
+                                localQr.qrImage ? (
+                                    <div className="w-40 h-40 border-4 border-gray-300 dark:border-gray-600 rounded-xl overflow-hidden shadow-lg bg-white flex items-center justify-center">
+                                        <img src={localQr.qrImage} alt="QR Code" className="w-full h-full object-contain p-2" />
+                                    </div>
+                                ) : (
+                                    <div className="w-40 h-40 border-4 border-dashed border-gray-300 dark:border-gray-600 rounded-xl flex items-center justify-center">
+                                        <FontAwesomeIcon icon={faQrcode} className="text-6xl text-gray-300 dark:text-gray-600" />
+                                    </div>
+                                )
                             )}
-                            <div className="flex items-center gap-2">
+
+                            {/* Status badges */}
+                            <div className="flex items-center gap-2 flex-wrap justify-center">
                                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${localQr.isActive ? 'bg-green-50 text-green-700 border-green-300' : 'bg-red-50 text-red-600 border-red-300'}`}>
                                     <FontAwesomeIcon icon={localQr.isActive ? faCheckCircle : faTimesCircle} className="text-[10px]" />
                                     {localQr.isActive ? 'Active' : 'Inactive'}
@@ -216,7 +312,6 @@ const QrInfoModal = ({ qr, onClose, allQrs = [], currentIndex = 0, onNavigate, b
                                         <FontAwesomeIcon icon={faCheckCircle} className="text-[10px]" /> Verified
                                     </span>
                                 )}
-                                {/* Reset button only shows when active */}
                                 {localQr.isActive && localQr.qrtype === "sample" && (
                                     <button
                                         onClick={() => setShowResetPopup(true)}
@@ -338,9 +433,9 @@ const QrInfoModal = ({ qr, onClose, allQrs = [], currentIndex = 0, onNavigate, b
                 </div>
 
                 {/* Next Button */}
-                {total > 1 && (
+                {totalPrimary > 1 && (
                     <button
-                        onClick={() => hasNext && onNavigate(currentIndex + 1)}
+                        onClick={handleNext}
                         disabled={!hasNext}
                         title="Next QR"
                         style={{ pointerEvents: 'auto' }}
@@ -354,11 +449,11 @@ const QrInfoModal = ({ qr, onClose, allQrs = [], currentIndex = 0, onNavigate, b
                 )}
             </div>
 
-            {/* ResetConfirmPopup — outside pointer-events-none container */}
+            {/* ResetConfirmPopup */}
             {showResetPopup && (
                 <ResetConfirmPopup
                     item={localQr}
-                    index={displayNum}
+                    index={displayLabel}
                     onConfirm={handleResetConfirm}
                     onCancel={() => setShowResetPopup(false)}
                 />

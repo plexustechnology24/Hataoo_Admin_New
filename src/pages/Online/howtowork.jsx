@@ -92,7 +92,7 @@ const HowToWork = () => {
         const params = { page, limit: itemsPerPage };
         if (search && search.trim() !== '') params.search = search.trim();
 
-        axios.get('http://localhost:3001/api/how-to-work/read', { params })
+        axios.get('https://api.hataoo.in/api/how-to-work/read', { params })
             .then((res) => {
                 const responseData = res.data.data || [];
                 const responsePagination = res.data.meta;
@@ -143,7 +143,7 @@ const HowToWork = () => {
     const closeDeleteModal = () => setDeleteModal({ isOpen: false, id: null, isBulk: false });
 
     const handleDelete = () => {
-        axios.delete(`http://localhost:3001/api/how-to-work/delete/${deleteModal.id}`)
+        axios.delete(`https://api.hataoo.in/api/how-to-work/delete/${deleteModal.id}`)
             .then((res) => {
                 const newPage = currentItems.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
                 getData(newPage, searchTerm);
@@ -155,7 +155,7 @@ const HowToWork = () => {
 
     const handleDeleteSelected = () => {
         setIsDeleting(true);
-        axios.post('http://localhost:3001/api/admin/deleteMultiple', { ids: selectedItems, TypeId: "1" })
+        axios.post('https://api.hataoo.in/api/admin/deleteMultiple', { ids: selectedItems, TypeId: "1" })
             .then(() => {
                 toast.success(`Successfully deleted ${selectedItems.length} items.`);
                 const remaining = currentItems.length - selectedItems.length;
@@ -373,10 +373,10 @@ const HowToWork = () => {
             if (selectedFiles.length > 0) formData.append('file', selectedFiles[0]);
 
             if (id) {
-                const res = await axios.patch(`http://localhost:3001/api/how-to-work/update/${id}`, formData);
+                const res = await axios.patch(`https://api.hataoo.in/api/how-to-work/update/${id}`, formData);
                 toast.success(res.data.message || 'Successfully updated');
             } else {
-                await axios.post('http://localhost:3001/api/how-to-work/create', formData);
+                await axios.post('https://api.hataoo.in/api/how-to-work/create', formData);
                 toast.success('Successfully created');
             }
             resetForm(); setVisible(false); getData(currentPage, searchTerm);

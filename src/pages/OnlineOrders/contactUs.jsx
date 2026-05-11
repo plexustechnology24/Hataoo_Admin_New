@@ -11,8 +11,8 @@ import Loading from "../../components/loading";
 import DeleteModal from "../../components/deleteModal";
 
 // ─── API Base ─────────────────────────────────────────────────────────────────
-const BASE           = "http://localhost:3001/api/contact/message";
-const BULK_DELETE    = "http://localhost:3001/api/admin/deleteMultiple";
+const BASE           = "https://api.hataoo.in/api/contact/message";
+const BULK_DELETE    = "https://api.hataoo.in/api/admin/deleteMultiple";
 const ITEMS_PER_PAGE = 15;
 
 // TypeId per tab: product → 1, influencer → 2

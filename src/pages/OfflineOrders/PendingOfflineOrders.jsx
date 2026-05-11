@@ -83,7 +83,7 @@ const AddToConfirmModal = ({ item, onClose, onSuccess }) => {
         try {
             setIsSubmitting(true);
             await axios.patch(
-                `http://localhost:3001/api/offline-order/update/${item._id}`,
+                `https://api.hataoo.in/api/offline-order/update/${item._id}`,
                 {
                     orderType: "confirm",
                     quantity: finalQty,
